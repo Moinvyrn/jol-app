@@ -550,8 +550,7 @@ class GameController extends ChangeNotifier {
     if (mode == GameMode.timed) {
       stopTimer();
     }
-    // 🧮 Let the mobile solve it, but give no points for it
-    score = 0;
+    
     notifyListeners();
   }
 
