@@ -8,6 +8,7 @@ class GameController extends ChangeNotifier {
   late List<List<int?>> _solutionGrid; // full solution
   late List<List<bool>> isFixed; // prefilled clues
   late List<List<int>> _relationshipRules; // 0=A+B=C, 1=B+C=A, 2=A+C=B
+  late List<List<bool>> isWrong; // tracks incorrect cells for highlighting
   int score = 0;
   Duration timeLeft = const Duration(minutes: 5);
   Timer? _timer;
@@ -28,6 +29,7 @@ class GameController extends ChangeNotifier {
     _solutionGrid = List.generate(gridSize, (_) => List.filled(gridSize, null));
     isFixed = List.generate(gridSize, (_) => List.filled(gridSize, false));
     _relationshipRules = List.generate(gridSize, (_) => List.filled(gridSize, 0));
+    isWrong = List.generate(gridSize, (_) => List.filled(gridSize, false));
 
     // Reference cell (top-left) - always fixed
     grid[0][0] = -1;
@@ -482,6 +484,27 @@ class GameController extends ChangeNotifier {
     return isComplete && correct == totalCells;
   }
 
+  void checkGrid() {
+    // Reset all wrong flags
+    for (int i = 0; i < gridSize; i++) {
+      for (int j = 0; j < gridSize; j++) {
+        isWrong[i][j] = false;
+      }
+    }
+
+    // Check each cell against solution, mark wrong if mismatch and filled
+    for (int i = 0; i < gridSize; i++) {
+      for (int j = 0; j < gridSize; j++) {
+        if (i == 0 && j == 0) continue;
+        if (grid[i][j] != null && grid[i][j] != _solutionGrid[i][j]) {
+          isWrong[i][j] = true;
+        }
+      }
+    }
+
+    notifyListeners();
+  }
+
   void solvePuzzle() {
     if (!isPlaying) return;
     for (int i = 0; i < gridSize; i++) {
@@ -489,6 +512,12 @@ class GameController extends ChangeNotifier {
         if (i == 0 && j == 0) continue;
         grid[i][j] = _solutionGrid[i][j];
         isFixed[i][j] = true;
+      }
+    }
+    // Clear wrongs on solve
+    for (int i = 0; i < gridSize; i++) {
+      for (int j = 0; j < gridSize; j++) {
+        isWrong[i][j] = false;
       }
     }
     isPlaying = false;

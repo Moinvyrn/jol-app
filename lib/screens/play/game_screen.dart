@@ -185,31 +185,57 @@ class _GameScreenState extends State<GameScreen> {
 
                     const SizedBox(height: 16),
 
-                    /// 3. Solve Puzzle Button
+                    /// 3. Solve Puzzle & Check Buttons
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed:
-                          controller.isPlaying ? controller.solvePuzzle : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: textGreen,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: controller.isPlaying ? controller.solvePuzzle : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: textGreen,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text(
+                                "Solve Puzzle",
+                                style: TextStyle(
+                                  fontFamily: "Rubik",
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
-                          child: const Text(
-                            "Solve Puzzle",
-                            style: TextStyle(
-                              fontFamily: "Rubik",
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: controller.isPlaying ? () {
+                                controller.checkGrid(); // Assuming controller has checkGrid() method
+                              } : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text(
+                                "Check",
+                                style: TextStyle(
+                                  fontFamily: "Rubik",
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
 
@@ -242,10 +268,28 @@ class _GameScreenState extends State<GameScreen> {
                                 Color cellColor =
                                 (row == 0 && col == 0) ? textPink : Colors.white;
 
+                                // Override for fixed cells: orange background
+                                if (isFixedCell && (row != 0 || col != 0)) {
+                                  cellColor = Colors.orange;
+                                }
+
+                                // Check for wrong highlight (assuming controller has isWrong[row][col])
+                                if (controller.isWrong != null && controller.isWrong[row][col] == true) {
+                                  cellColor = Colors.red.shade200;
+                                }
+
                                 Border cellBorder = Border.all(
                                   color: Colors.grey.shade600,
                                   width: 1.6,
                                 );
+
+                                // No border for top-left pink cell
+                                if (row == 0 && col == 0) {
+                                  cellBorder = Border.all(
+                                    color: Colors.transparent,
+                                    width: 0,
+                                  );
+                                }
 
                                 return Container(
                                   decoration: BoxDecoration(
@@ -269,7 +313,7 @@ class _GameScreenState extends State<GameScreen> {
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 20,
-                                        color: Colors.black,
+                                        color: Colors.white, // White text for fixed/orange cells
                                       ),
                                     )
                                         : TextField(
@@ -396,7 +440,6 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 }
-
 /// =================== FinishGameDialog ===================
 class FinishGameDialog extends StatelessWidget {
   const FinishGameDialog({super.key});
