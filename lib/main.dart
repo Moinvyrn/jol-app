@@ -1,31 +1,20 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 👈 Add this
-import 'package:jol_app/screens/auth/login_screen.dart';
-import 'package:jol_app/screens/auth/signup_screen.dart';
-import 'package:jol_app/screens/bnb/home_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:jol_app/screens/dashboard/dashboard_screen.dart';
-import 'package:jol_app/screens/dashboard/notification_screen.dart';
-import 'package:jol_app/screens/group/group_screen.dart';
-import 'package:jol_app/screens/onboarding/onboarding_screen.dart';
 import 'package:jol_app/screens/play/controller/game_controller.dart';
 import 'package:jol_app/screens/play/game_screen.dart';
 import 'package:jol_app/screens/play/paly_screen.dart';
-import 'package:jol_app/screens/play/result_screen.dart';
-import 'package:jol_app/screens/play/start_game_screen.dart';
-import 'package:jol_app/screens/play/submit_game_screen.dart';
-import 'package:jol_app/screens/settings/account_screen.dart';
-import 'package:jol_app/screens/settings/choose_color_screen.dart';
-import 'package:jol_app/screens/settings/coupons_screen.dart';
-import 'package:jol_app/screens/settings/edit_profile_screen.dart';
-import 'package:jol_app/screens/settings/monetization_screen.dart';
-import 'package:jol_app/screens/settings/money_screen.dart';
-import 'package:jol_app/screens/settings/remove_adds_screen.dart';
 import 'package:jol_app/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // 👈 Required before SystemChrome
 
+  MobileAds.instance.initialize();
+
+  await Firebase.initializeApp();
   // 🔒 Lock app to portrait only
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -54,7 +43,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: GameScreen(),
+      home: SplashScreen(),
     );
   }
 }

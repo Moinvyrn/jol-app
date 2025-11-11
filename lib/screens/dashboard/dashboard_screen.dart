@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:jol_app/screens/dashboard/notification_screen.dart';
 import 'package:jol_app/screens/settings/account_screen.dart';
 
+import '../../constants/add_manager.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -17,6 +18,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static const Color textGreen = Color(0xFF43AC45);
   static const Color textPink = Color(0xFFF82A87);
 
+  final AdManager _adManager = AdManager();
+  @override
+  void initState() {
+    super.initState();
+    _adManager.loadInterstitial(); // Preload ad
+  }
   @override
   Widget build(BuildContext context) {
     // Transparent status bar
@@ -232,6 +239,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ),
+      ),
+      // 👇 Floating Action Button (for testing or triggering ad manually)
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.pinkAccent,
+        child: const Icon(Icons.ad_units_rounded, color: Colors.white),
+        onPressed: () async {
+          final shown = await _adManager.showInterstitial();
+          if (shown) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Ad closed — continuing flow.')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No ad available at the moment.')),
+            );
+          }
+        },
       ),
     );
   }

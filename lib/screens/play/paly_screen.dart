@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jol_app/screens/play/create_room_screen.dart';
 import 'package:jol_app/screens/play/start_game_screen.dart';
 
 import '../dashboard/notification_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../settings/account_screen.dart';
+import 'join_room_screen.dart';
 
 class PlayScreen extends StatefulWidget {
   const PlayScreen({super.key});
@@ -90,8 +92,8 @@ class _PlayScreenState extends State<PlayScreen> {
 
                 // 📋 Game Board Container
                 Padding(
-                  padding:
-                  const EdgeInsets.symmetric(vertical: 16.0, horizontal: 25),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 16.0, horizontal: 25),
                   child: Container(
                     decoration: BoxDecoration(
                       color: textPink.withOpacity(0.5),
@@ -144,7 +146,8 @@ class _PlayScreenState extends State<PlayScreen> {
                             itemBuilder: (context, index) {
                               return PuzzleCard(
                                 imagePath: "lib/assets/images/logo.png",
-                                title: "JOL PUZZLES ${getTitleSuffix(selectedLevel)}",
+                                title:
+                                    "JOL PUZZLES ${getTitleSuffix(selectedLevel)}",
                                 entry: getEntry(selectedLevel),
                                 players: index.isEven
                                     ? "SINGLE PLAYER"
@@ -162,7 +165,7 @@ class _PlayScreenState extends State<PlayScreen> {
                 // 🔘 Bottom Buttons
                 Padding(
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 25, vertical: 6),
+                      const EdgeInsets.symmetric(horizontal: 25, vertical: 6),
                   child: Column(
                     children: [
                       SizedBox(
@@ -176,9 +179,11 @@ class _PlayScreenState extends State<PlayScreen> {
                             ),
                           ),
                           onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => const EnterMatchCode(),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const JoinRoomScreen(),
+                              ),
                             );
                           },
                           child: const Text(
@@ -197,16 +202,18 @@ class _PlayScreenState extends State<PlayScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFE82AF8), // Pink/Purple
+                            backgroundColor: textPink, // 0xFFF82A87
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                           onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => const CreatePrivateTable(),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CreateRoomScreen(),
+                              ),
                             );
                           },
                           child: const Text(
@@ -239,7 +246,7 @@ class _PlayScreenState extends State<PlayScreen> {
     return Row(
       children: List.generate(
         letters.length,
-            (index) => Text(
+        (index) => Text(
           letters[index],
           style: const TextStyle(
             fontFamily: 'Digitalt',
@@ -282,7 +289,7 @@ class _PlayScreenState extends State<PlayScreen> {
                 },
                 child: Container(
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
                     color: textGreen,
                     borderRadius: BorderRadius.circular(12),
@@ -307,7 +314,9 @@ class _PlayScreenState extends State<PlayScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => NotificationScreen()), // Replace with NotificationScreen()
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            NotificationScreen()), // Replace with NotificationScreen()
                   );
                 },
                 child: Container(
@@ -328,8 +337,7 @@ class _PlayScreenState extends State<PlayScreen> {
 
               // 💰 Coins
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.white),
                   color: textPink,
@@ -380,14 +388,14 @@ class _PlayScreenState extends State<PlayScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                      const AccountScreen(),),
+                      builder: (context) => const AccountScreen(),
+                    ),
                   );
                 },
                 child: const CircleAvatar(
                   radius: 18,
                   backgroundImage:
-                  AssetImage("lib/assets/images/settings_emoji.png"),
+                      AssetImage("lib/assets/images/settings_emoji.png"),
                 ),
               ),
             ],
@@ -432,16 +440,16 @@ class _LevelSelectorState extends State<LevelSelector> {
           position: const RelativeRect.fromLTRB(100, 100, 100, 100),
           items: widget.levels
               .map((level) => PopupMenuItem<String>(
-            value: level,
-            child: Text(
-              level,
-              style: const TextStyle(
-                fontFamily: 'Digitalt',
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ))
+                    value: level,
+                    child: Text(
+                      level,
+                      style: const TextStyle(
+                        fontFamily: 'Digitalt',
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ))
               .toList(),
         );
 
@@ -452,7 +460,7 @@ class _LevelSelectorState extends State<LevelSelector> {
       },
       child: Container(
         padding:
-        const EdgeInsets.symmetric(horizontal: 2, vertical: 4), // smaller
+            const EdgeInsets.symmetric(horizontal: 2, vertical: 4), // smaller
         decoration: BoxDecoration(
           color: Colors.orange[600],
           borderRadius: BorderRadius.circular(24),
@@ -516,7 +524,8 @@ class PuzzleCard extends StatelessWidget {
     return InkWell(
       onTap: () {
         // Handle card tap
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const StartGameScreen()));
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const StartGameScreen()));
       },
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
@@ -541,7 +550,7 @@ class PuzzleCard extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -643,251 +652,6 @@ class PuzzleCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class EnterMatchCode extends StatefulWidget {
-  const EnterMatchCode({super.key});
-
-  @override
-  State<EnterMatchCode> createState() => _EnterMatchCodeState();
-}
-
-class _EnterMatchCodeState extends State<EnterMatchCode> {
-  final TextEditingController _nameController = TextEditingController();
-
-  static const Color textPink = Color(0xFFC42AF8);
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      backgroundColor: Colors.transparent,
-      child: SingleChildScrollView(
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    "Match Code",
-                    style: TextStyle(
-                      fontFamily: "Rubik",
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFfc6839),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 📝 TextField for group name
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      hintText: "Enter Match Code",
-                      hintStyle: const TextStyle(
-                        color: Color(0xFFF82A87),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-
-                      // 👇 Default border (very grey)
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Colors.grey, // light grey border
-                          width: 0.5,
-                        ),
-                      ),
-
-                      // 👇 Focused border (pink when clicked)
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFF82A87), // pink border
-                          width: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: textPink,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                    ),
-                    onPressed: () {
-                      final id = _nameController.text.trim();
-                      if (id.isNotEmpty) {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const StartGameScreen())); // return the name
-                      }
-                    },
-                    child: const Text(
-                      "Join Game",
-                      style: TextStyle(
-                        fontFamily: "Digitalt",
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: -40,
-              child: Image.asset(
-                'lib/assets/images/settings_emoji.png',
-                height: 80,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-
-class CreatePrivateTable extends StatefulWidget {
-  const CreatePrivateTable({super.key});
-
-  @override
-  State<CreatePrivateTable> createState() => _CreatePrivateTableState();
-}
-
-class _CreatePrivateTableState extends State<CreatePrivateTable> {
-  final TextEditingController _codeController = TextEditingController();
-
-  static const Color textPink = Color(0xFFC42AF8);
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      backgroundColor: Colors.transparent,
-      child: SingleChildScrollView(
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    "Create Private Table",
-                    style: TextStyle(
-                      fontFamily: "Rubik",
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFfc6839),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 📝 TextField for group name
-                  TextField(
-                    controller: _codeController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: "Enter the number of players",
-                      hintStyle: const TextStyle(
-                        color: Color(0xFFF82A87),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-
-                      // 👇 Default border (very grey)
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Colors.grey, // light grey border
-                          width: 0.5,
-                        ),
-                      ),
-
-                      // 👇 Focused border (pink when clicked)
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFF82A87), // pink border
-                          width: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: textPink,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                    ),
-                    onPressed: () {
-                      final id = _codeController.text.trim();
-                      if (id.isNotEmpty) {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const StartGameScreenPrivate())); // return the name
-                      }
-                    },
-                    child: const Text(
-                      "Pay now to to generate game code",
-                      style: TextStyle(
-                        fontFamily: "Digitalt",
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: -40,
-              child: Image.asset(
-                'lib/assets/images/settings_emoji.png',
-                height: 80,
               ),
             ),
           ],

@@ -17,15 +17,55 @@ class _GameScreenState extends State<GameScreen> {
   static const Color textPink = Color(0xFFF82A87);
 
   final Map<String, TextEditingController> _inputControllers = {};
-  bool _showMinus = false; // State to toggle + / -
+  final Map<String, FocusNode> _focusNodes = {};
+  bool _showMinus = false;
+  String? _selectedCell;
 
   @override
   void dispose() {
     _inputControllers.values.forEach((controller) => controller.dispose());
+    _focusNodes.values.forEach((node) => node.dispose());
     super.dispose();
   }
 
   String _getKey(int row, int col) => '$row-$col';
+
+  void _onKeyboardTap(String value, GameController controller) {
+    if (_selectedCell == null) return;
+
+    final parts = _selectedCell!.split('-');
+    final row = int.parse(parts[0]);
+    final col = int.parse(parts[1]);
+
+    if (value == 'clear') {
+      final currentText = _inputControllers[_selectedCell]?.text ?? '';
+      if (currentText.isNotEmpty) {
+        // Remove last character
+        final newText = currentText.substring(0, currentText.length - 1);
+        _inputControllers[_selectedCell]?.text = newText;
+
+        if (newText.isEmpty) {
+          controller.updateCell(row, col, null);
+        } else {
+          final newVal = int.tryParse(newText);
+          if (newVal != null && newVal >= 0) {
+            controller.updateCell(row, col, newVal);
+          }
+        }
+      }
+    } else {
+      final currentText = _inputControllers[_selectedCell]?.text ?? '';
+      final newText = currentText + value;
+
+      if (newText.length <= 3) {
+        _inputControllers[_selectedCell]?.text = newText;
+        final newVal = int.tryParse(newText);
+        if (newVal != null && newVal >= 0) {
+          controller.updateCell(row, col, newVal);
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,12 +81,21 @@ class _GameScreenState extends State<GameScreen> {
           int gridSize = controller.gridSize;
           final bool isTimed = controller.mode == GameMode.timed;
 
-          // Initialize controllers only once per editable cell
+          // Initialize controllers and focus nodes
           for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
               if ((i != 0 || j != 0) && !controller.isFixed[i][j]) {
                 String key = _getKey(i, j);
                 _inputControllers.putIfAbsent(key, () => TextEditingController());
+                _focusNodes.putIfAbsent(key, () {
+                  final node = FocusNode();
+                  node.addListener(() {
+                    if (node.hasFocus) {
+                      setState(() => _selectedCell = key);
+                    }
+                  });
+                  return node;
+                });
               }
             }
           }
@@ -65,359 +114,487 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ),
               child: SafeArea(
-                child: Column(
-                  children: [
-                    /// 1. Header Bar
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Row(
-                        children: [
-                          InkWell(
-                            onTap: () => Navigator.pop(context),
-                            child: Container(
-                              width: 30,
-                              height: 30,
-                              decoration: const BoxDecoration(
-                                color: textPink,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.arrow_back_ios_new,
-                                  color: Colors.white, size: 18),
-                            ),
-                          ),
-                          const Spacer(),
-                          const Text(
-                            "Jaloo Puzzle",
-                            style: TextStyle(
-                              fontFamily: "Rubik",
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Spacer(),
-                          Builder(
-                            builder: (innerContext) {
-                              return InkWell(
-                                onTap: () {
-                                  showSettingsDialog(innerContext); // ✅ uses context inside Provider
-                                },
-                                child: Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: const BoxDecoration(
-                                    color: textGreen,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.settings, color: Colors.white, size: 18),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Calculate responsive sizing based on available height
+                    final screenHeight = constraints.maxHeight;
+                    final screenWidth = constraints.maxWidth;
 
-                    const SizedBox(height: 10),
+                    // Responsive font and size calculations
+                    final headerSize = screenHeight * 0.04;
+                    final iconSize = screenHeight * 0.035;
+                    final scoreFontSize = screenHeight * 0.016;
+                    final buttonFontSize = screenHeight * 0.015;
+                    final buttonPadding = screenHeight * 0.01;
 
-                    /// 2. Score & Timer/Mode
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: textPink,
-                          borderRadius: BorderRadius.circular(12),
+                    // Grid calculations - reduced height to remove empty space
+                    final gridPadding = screenWidth * 0.1;
+                    final gridAreaHeight = screenHeight * 0.35;
+                    final spacing = screenHeight * 0.01;
+
+                    // Keyboard calculations - increased height for better spacing
+                    final keyboardHeight = screenHeight * 0.30;
+                    final keyHeight = keyboardHeight * 0.20;
+                    final keyFontSize = screenHeight * 0.022;
+
+                    return SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: screenHeight,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            isTimed
-                                ? Text(
-                              "Time Left: ${controller.timeLeft.inMinutes.toString().padLeft(2, '0')}:${(controller.timeLeft.inSeconds % 60).toString().padLeft(2, '0')}",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                              ),
-                            )
-                                : const Text(
-                              "Mode: Untimed",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              "Score: ${controller.score}",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    /// 3. Solve Puzzle & Check Buttons
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed:
-                              controller.isPlaying ? controller.solvePuzzle : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: textGreen,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                        child: IntrinsicHeight(
+                          child: Column(
+                            children: [
+                              /// 1. Header Bar
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.03,
+                                  vertical: screenHeight * 0.008,
                                 ),
-                              ),
-                              child: const Text(
-                                "Solve Puzzle",
-                                style: TextStyle(
-                                  fontFamily: "Rubik",
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: controller.isPlaying
-                                  ? () {
-                                controller.checkGrid();
-                              }
-                                  : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text(
-                                "Check",
-                                style: TextStyle(
-                                  fontFamily: "Rubik",
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    /// 4. Grid
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            const double spacing = 8;
-                            return GridView.builder(
-                              physics: const BouncingScrollPhysics(),
-                              itemCount: gridSize * gridSize,
-                              gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: gridSize,
-                                mainAxisSpacing: spacing,
-                                crossAxisSpacing: spacing,
-                                childAspectRatio: 1.0,
-                              ),
-                              itemBuilder: (context, index) {
-                                int row = index ~/ gridSize;
-                                int col = index % gridSize;
-                                bool isFixedCell = controller.isFixed[row][col];
-                                final value = controller.grid[row][col];
-
-                                Color cellColor =
-                                (row == 0 && col == 0) ? textPink : Colors.white;
-
-                                if (isFixedCell && (row != 0 || col != 0)) {
-                                  cellColor = Colors.orange;
-                                }
-
-                                if (controller.isWrong[row][col] == true) {
-                                  cellColor = Colors.red.shade200;
-                                }
-
-                                Border cellBorder = Border.all(
-                                  color: Colors.grey.shade600,
-                                  width: 1.6,
-                                );
-
-                                if (row == 0 && col == 0) {
-                                  cellBorder = Border.all(
-                                    color: Colors.transparent,
-                                    width: 0,
-                                  );
-                                }
-
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    color: cellColor,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: cellBorder,
-                                  ),
-                                  child: Center(
-                                    child: (row == 0 && col == 0)
-                                        ? GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _showMinus = !_showMinus;
-                                        });
-                                        // Switch operation mode and regenerate puzzle
-                                        controller.setOperation(
-                                            _showMinus
-                                                ? PuzzleOperation.subtraction
-                                                : PuzzleOperation.addition
+                                child: Row(
+                                  children: [
+                                    InkWell(
+                                      onTap: () => Navigator.pop(context),
+                                      child: Container(
+                                        width: iconSize,
+                                        height: iconSize,
+                                        decoration: const BoxDecoration(
+                                          color: textPink,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(Icons.arrow_back_ios_new,
+                                            color: Colors.white, size: iconSize * 0.6),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      "Jol Puzzle",
+                                      style: TextStyle(
+                                        fontFamily: "Rubik",
+                                        fontSize: headerSize,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Builder(
+                                      builder: (innerContext) {
+                                        return InkWell(
+                                          onTap: () {
+                                            showSettingsDialog(innerContext);
+                                          },
+                                          child: Container(
+                                            width: iconSize,
+                                            height: iconSize,
+                                            decoration: const BoxDecoration(
+                                              color: textGreen,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(Icons.settings,
+                                                color: Colors.white, size: iconSize * 0.6),
+                                          ),
                                         );
-                                        // Clear input controllers for new puzzle
-                                        _inputControllers.clear();
                                       },
-                                      child: Text(
-                                        _showMinus ? "-" : "+",
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              SizedBox(height: screenHeight * 0.008),
+
+                              /// 2. Score & Timer/Mode
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: screenWidth * 0.04,
+                                          vertical: screenHeight * 0.01,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: textPink,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            isTimed
+                                                ? Text(
+                                              "Time Left: ${controller.timeLeft.inMinutes.toString().padLeft(2, '0')}:${(controller.timeLeft.inSeconds % 60).toString().padLeft(2, '0')}",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: scoreFontSize,
+                                              ),
+                                            )
+                                                : Text(
+                                              "Mode: Untimed",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: scoreFontSize,
+                                              ),
+                                            ),
+                                            Text(
+                                              "Score: ${controller.score}",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: scoreFontSize,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    )
-                                        : isFixedCell
-                                        ? Text(
-                                      value?.toString() ?? "",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                        color: Colors.white,
+                                    ),
+                                    SizedBox(width: screenWidth * 0.02),
+                                    InkWell(
+                                      onTap: () {
+                                        controller.toggleMode();
+                                      },
+                                      child: Container(
+                                        padding: EdgeInsets.all(screenHeight * 0.012),
+                                        decoration: BoxDecoration(
+                                          color: textGreen,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          isTimed ? Icons.timer : Icons.timer_off,
+                                          color: Colors.white,
+                                          size: iconSize * 0.8,
+                                        ),
                                       ),
-                                    )
-                                        : TextField(
-                                      controller:
-                                      _inputControllers[_getKey(row, col)],
-                                      textAlign: TextAlign.center,
-                                      keyboardType:
-                                      TextInputType.number,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter
-                                            .digitsOnly,
-                                      ],
-                                      decoration: const InputDecoration(
-                                        border: InputBorder.none,
-                                        hintText: "", // Removed the "?"
-                                        counterText: "",
-                                        isCollapsed: true,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              SizedBox(height: screenHeight * 0.01),
+
+                              /// 3. Solve Puzzle & Check Buttons
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed:
+                                        controller.isPlaying ? controller.solvePuzzle : null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: textGreen,
+                                          padding: EdgeInsets.symmetric(vertical: buttonPadding),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          "Solve Puzzle",
+                                          style: TextStyle(
+                                            fontFamily: "Rubik",
+                                            fontSize: buttonFontSize,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                                       ),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      onChanged: (val) {
-                                        if (val.isEmpty) {
-                                          controller.updateCell(
-                                              row, col, null);
-                                          return;
+                                    ),
+                                    SizedBox(width: screenWidth * 0.02),
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: controller.isPlaying
+                                            ? () {
+                                          controller.checkGrid();
                                         }
-                                        int? newVal = int.tryParse(val);
-                                        if (newVal != null && newVal >= 0) {
-                                          controller.updateCell(
-                                              row, col, newVal);
-                                        }
+                                            : null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                          padding: EdgeInsets.symmetric(vertical: buttonPadding),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          "Check",
+                                          style: TextStyle(
+                                            fontFamily: "Rubik",
+                                            fontSize: buttonFontSize,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              SizedBox(height: screenHeight * 0.015),
+
+                              /// 4. Grid with Container Background
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: gridPadding),
+                                child: Container(
+                                  padding: EdgeInsets.all(screenHeight * 0.015),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.15),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: SizedBox(
+                                    height: gridAreaHeight,
+                                    child: LayoutBuilder(
+                                      builder: (context, gridConstraints) {
+                                        final gridWidth = gridConstraints.maxWidth;
+                                        final cellSize = (gridWidth - (spacing * (gridSize - 1))) / gridSize;
+                                        // Unified font size for both grid and keyboard
+                                        final unifiedFontSize = screenHeight * 0.024;
+
+                                        return GridView.builder(
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          itemCount: gridSize * gridSize,
+                                          gridDelegate:
+                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: gridSize,
+                                            mainAxisSpacing: spacing,
+                                            crossAxisSpacing: spacing,
+                                            childAspectRatio: 1,
+                                          ),
+                                          itemBuilder: (context, index) {
+                                            int row = index ~/ gridSize;
+                                            int col = index % gridSize;
+                                            bool isFixedCell = controller.isFixed[row][col];
+                                            final value = controller.grid[row][col];
+
+                                            Color cellColor = Colors.white;
+
+                                            // Top-left corner is now yellow too
+                                            if (row == 0 && col == 0) {
+                                              cellColor = const Color(0xFFFFD54F);
+                                            } else if (isFixedCell) {
+                                              cellColor = const Color(0xFFFFD54F); // Yellow for fixed cells
+                                            }
+
+                                            if (controller.isWrong[row][col] == true) {
+                                              cellColor = Colors.red.shade300;
+                                            }
+
+                                            return Container(
+                                              decoration: BoxDecoration(
+                                                color: cellColor,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Center(
+                                                child: (row == 0 && col == 0)
+                                                    ? GestureDetector(
+                                                  onTap: () {
+                                                    setState(() {
+                                                      _showMinus = !_showMinus;
+                                                    });
+                                                    controller.setOperation(
+                                                        _showMinus
+                                                            ? PuzzleOperation.subtraction
+                                                            : PuzzleOperation.addition
+                                                    );
+                                                    _inputControllers.clear();
+                                                    _focusNodes.clear();
+                                                    setState(() => _selectedCell = null);
+                                                  },
+                                                  child: Text(
+                                                    _showMinus ? "-" : "+",
+                                                    style: TextStyle(
+                                                      fontSize: unifiedFontSize * 1.3,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                )
+                                                    : isFixedCell
+                                                    ? Text(
+                                                  value?.toString() ?? "",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: unifiedFontSize,
+                                                    color: Colors.black,
+                                                  ),
+                                                )
+                                                    : TextField(
+                                                  controller:
+                                                  _inputControllers[_getKey(row, col)],
+                                                  focusNode: _focusNodes[_getKey(row, col)],
+                                                  textAlign: TextAlign.center,
+                                                  readOnly: true,
+                                                  showCursor: true,
+                                                  decoration: const InputDecoration(
+                                                    border: InputBorder.none,
+                                                    hintText: "",
+                                                    counterText: "",
+                                                    isCollapsed: true,
+                                                  ),
+                                                  style: TextStyle(
+                                                    fontSize: unifiedFontSize,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
                                       },
                                     ),
                                   ),
-                                );
-                              },
-                            );
-                          },
+                                ),
+                              ),
+
+                              SizedBox(height: screenHeight * 0.015),
+
+                              /// 5. Custom Numeric Keyboard
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: gridPadding),
+                                child: Container(
+                                  height: keyboardHeight,
+                                  padding: EdgeInsets.all(screenHeight * 0.015),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.15),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, -2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          _buildKeyButton('1', controller, keyHeight, screenHeight * 0.024),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          _buildKeyButton('2', controller, keyHeight, screenHeight * 0.024),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          _buildKeyButton('3', controller, keyHeight, screenHeight * 0.024),
+                                        ],
+                                      ),
+                                      SizedBox(height: screenHeight * 0.01),
+                                      Row(
+                                        children: [
+                                          _buildKeyButton('4', controller, keyHeight, screenHeight * 0.024),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          _buildKeyButton('5', controller, keyHeight, screenHeight * 0.024),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          _buildKeyButton('6', controller, keyHeight, screenHeight * 0.024),
+                                        ],
+                                      ),
+                                      SizedBox(height: screenHeight * 0.01),
+                                      Row(
+                                        children: [
+                                          _buildKeyButton('7', controller, keyHeight, screenHeight * 0.024),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          _buildKeyButton('8', controller, keyHeight, screenHeight * 0.024),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          _buildKeyButton('9', controller, keyHeight, screenHeight * 0.024),
+                                        ],
+                                      ),
+                                      SizedBox(height: screenHeight * 0.01),
+                                      Row(
+                                        children: [
+                                          Expanded(child: Container()),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          _buildKeyButton('0', controller, keyHeight, screenHeight * 0.024),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          _buildClearButton(controller, keyHeight, screenHeight * 0.022),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              SizedBox(height: screenHeight * 0.015),
+
+                              /// 6. Bottom Actions
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.05,
+                                  vertical: screenHeight * 0.008,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          controller.resetGame();
+                                          _inputControllers.clear();
+                                          _focusNodes.clear();
+                                          setState(() => _selectedCell = null);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                          padding: EdgeInsets.symmetric(vertical: buttonPadding),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          "Reset",
+                                          style: TextStyle(
+                                            fontFamily: "Rubik",
+                                            fontSize: buttonFontSize,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: screenWidth * 0.02),
+                                    Expanded(
+                                      flex: 2,
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          controller.validateGrid();
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => SubmitGameScreen(),
+                                            ),
+                                          );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: textBlue,
+                                          padding: EdgeInsets.symmetric(vertical: buttonPadding),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          "Check & Submit Score",
+                                          style: TextStyle(
+                                            fontFamily: "Rubik",
+                                            fontSize: buttonFontSize,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-
-                    /// 5. Bottom Actions
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () {
-                                controller.resetGame();
-                                _inputControllers.clear();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text(
-                                "Reset",
-                                style: TextStyle(
-                                  fontFamily: "Rubik",
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                controller.validateGrid();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SubmitGameScreen(),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: textBlue,
-                                padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text(
-                                "Check & Submit Score",
-                                style: TextStyle(
-                                  fontFamily: "Rubik",
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -427,9 +604,58 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  // Settings dialog method (assuming it exists)
+  Widget _buildKeyButton(String number, GameController controller, double height, double fontSize) {
+    return Expanded(
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        elevation: 2,
+        child: InkWell(
+          onTap: () => _onKeyboardTap(number, controller),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: height,
+            padding: EdgeInsets.symmetric(vertical: height * 0.15),
+            alignment: Alignment.center,
+            child: Text(
+              number,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClearButton(GameController controller, double height, double iconSize) {
+    return Expanded(
+      child: Material(
+        color: Colors.grey.shade400,
+        borderRadius: BorderRadius.circular(8),
+        elevation: 2,
+        child: InkWell(
+          onTap: () => _onKeyboardTap('clear', controller),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: height,
+            padding: EdgeInsets.symmetric(vertical: height * 0.15),
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.backspace_outlined,
+              size: iconSize,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void showSettingsDialog(BuildContext context) {
-    // Your existing settings dialog code here
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -447,7 +673,6 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 }
-
 
 /// =================== FinishGameDialog ===================
 class FinishGameDialog extends StatelessWidget {

@@ -72,9 +72,9 @@ class _StartGameScreenState extends State<StartGameScreen> {
                     ],
                   ),
                 ),
-        
+
                 const SizedBox(height: 12),
-        
+
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
@@ -139,9 +139,9 @@ class _StartGameScreenState extends State<StartGameScreen> {
                     ),
                   ),
                 ),
-        
+
                 const SizedBox(height: 40),
-        
+
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -169,7 +169,7 @@ class _StartGameScreenState extends State<StartGameScreen> {
                     ],
                   ),
                 ),
-        
+
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                   child: Column(
@@ -350,9 +350,9 @@ class _StartGameScreenPrivateState extends State<StartGameScreenPrivate> {
                     ],
                   ),
                 ),
-        
+
                 const SizedBox(height: 12),
-        
+
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
@@ -417,9 +417,9 @@ class _StartGameScreenPrivateState extends State<StartGameScreenPrivate> {
                     ),
                   ),
                 ),
-        
+
                 const SizedBox(height: 40),
-        
+
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -471,10 +471,10 @@ class _StartGameScreenPrivateState extends State<StartGameScreenPrivate> {
                           ],
                         ),
                       ),
-                      ],
+                    ],
                   ),
                 ),
-        
+
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                   child: Column(

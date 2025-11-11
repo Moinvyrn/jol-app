@@ -8,7 +8,7 @@ enum PuzzleOperation { addition, subtraction }
 class GameController extends ChangeNotifier {
   int gridSize;
   GameMode _mode = GameMode.untimed;
-  PuzzleOperation operation = PuzzleOperation.addition; // NEW
+  PuzzleOperation operation = PuzzleOperation.addition;
   late List<List<int?>> grid; // visible cells (null = empty)
   late List<List<int?>> _solutionGrid; // full solution
   late List<List<bool>> isFixed; // prefilled clues
@@ -18,6 +18,9 @@ class GameController extends ChangeNotifier {
   Timer? _timer;
   bool isPlaying = false;
   int seedNumbers = 0;
+
+  // Public getter for _solutionGrid
+  List<List<int?>> get solutionGrid => _solutionGrid;
 
   GameController({this.gridSize = 4}) {
     _initGrid();
@@ -132,7 +135,8 @@ class GameController extends ChangeNotifier {
   int _randomNumberNotInRowCol(int row, int col, Random random) {
     int number;
     do {
-      number = random.nextInt(9) + 1; // 1 to 9 (less than 10)
+      // Generate numbers from 1 to 25 (single and double digits)
+      number = random.nextInt(25) + 1;
     } while (_isNumberUsedInRowOrColumn(number, row, col));
     return number;
   }
@@ -319,7 +323,8 @@ class GameController extends ChangeNotifier {
             _solutionGrid[randomRow][randomCol] == null &&
             _checkCondition(randomRow, randomCol)) {
 
-          _solutionGrid[randomRow][randomCol] = random.nextInt(9) + 1; // 1-9 (less than 10)
+          // Generate numbers from 1 to 25 (single and double digits)
+          _solutionGrid[randomRow][randomCol] = random.nextInt(25) + 1;
           grid[randomRow][randomCol] = _solutionGrid[randomRow][randomCol];
           isFixed[randomRow][randomCol] = true;
           seedNumbers++;
@@ -606,6 +611,8 @@ class GameController extends ChangeNotifier {
     if (row == 0 || col == 0) return '';
     return operation == PuzzleOperation.addition ? 'A + B = C' : '|A - B| = C';
   }
+
+
 
   @override
   void dispose() {
