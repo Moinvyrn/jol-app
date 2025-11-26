@@ -1,12 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:jol_app/screens/auth/verification_screen.dart';
+import 'package:jol_app/screens/auth/login_screen.dart';  // Import LoginScreen for navigation
+import 'package:jol_app/screens/auth/services/auth_services.dart';
+import 'package:jol_app/screens/bnb/home_screen.dart';  // Import HomeScreen for success navigation
 
-class SignupScreen extends StatelessWidget {
+class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
   static const Color textBlue = Color(0xFF0734A5);
   static const Color textGreen = Color(0xFF43AC45);
   static const Color textPink = Color(0xFFC42AF8);
+
+  @override
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  final AuthService _authService = AuthService();  // AuthService instance
+  final _usernameController = TextEditingController();  // For Username
+  final _emailController = TextEditingController();  // For Email
+  final _passwordController = TextEditingController();  // For Password
+  final _confirmPasswordController = TextEditingController();  // For Confirm Password
+  bool _isLoading = false;  // Loading state for register
+  bool _isGoogleLoading = false;  // Loading state for Google
 
   @override
   Widget build(BuildContext context) {
@@ -51,32 +66,24 @@ class SignupScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 25),
 
-                    // Name
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      child: _inputField(
-                        icon: Icons.person_outline,
-                        hint: "NAME",
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Nick Name
+                    // Username (replaced Nick Name)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: _inputField(
                         icon: Icons.person_pin_circle_outlined,
-                        hint: "NICK NAME",
+                        hint: "USERNAME",
+                        controller: _usernameController,  // Assign controller
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Email/Phone
+                    // Email/Phone (as Email)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: _inputField(
                         icon: Icons.email_outlined,
-                        hint: "EMAIL/PHONE",
+                        hint: "EMAIL",
+                        controller: _emailController,  // Assign controller
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -88,6 +95,7 @@ class SignupScreen extends StatelessWidget {
                         icon: Icons.lock_outline,
                         hint: "PASSWORD",
                         obscure: true,
+                        controller: _passwordController,  // Assign controller
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -99,6 +107,7 @@ class SignupScreen extends StatelessWidget {
                         icon: Icons.lock_outline,
                         hint: "CONFIRM PASSWORD",
                         obscure: true,
+                        controller: _confirmPasswordController,  // Assign controller
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -125,7 +134,7 @@ class SignupScreen extends StatelessWidget {
                       child: Row(
                         children: [
                           const Expanded(
-                            child: Divider(thickness: 1, color: textPink),
+                            child: Divider(thickness: 1, color: SignupScreen.textPink),
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -135,12 +144,12 @@ class SignupScreen extends StatelessWidget {
                                 fontFamily: 'Digitalt',
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
-                                color: textPink,
+                                color: SignupScreen.textPink,
                               ),
                             ),
                           ),
                           const Expanded(
-                            child: Divider(thickness: 1, color: textPink),
+                            child: Divider(thickness: 1, color: SignupScreen.textPink),
                           ),
                         ],
                       ),
@@ -151,32 +160,13 @@ class SignupScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: _socialButton(
-                        text: "CONTINUE WITH GMAIL",
+                        text: _isGoogleLoading ? "SIGNING UP..." : "CONTINUE WITH GMAIL",
                         icon: Image.asset(
                           "lib/assets/images/google.png",
                           height: 22,
                           width: 22,
                         ),
-                        onTap: () {
-                          _showSocialDialog(context, "Google");
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Facebook button
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      child: _socialButton(
-                        text: "CONTINUE WITH FACEBOOK",
-                        icon: Image.asset(
-                          "lib/assets/images/facebook.png",
-                          height: 22,
-                          width: 22,
-                        ),
-                        onTap: () {
-                          _showSocialDialog(context, "Facebook");
-                        },
+                        onTap: _isGoogleLoading ? null : _handleGoogleSignup,
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -214,14 +204,23 @@ class SignupScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: textPink,
+                          backgroundColor: SignupScreen.textPink,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VerificationScreen())),
-                        child: const Text(
+                        onPressed: _isLoading ? null : _handleRegister,  // Add handler, disable if loading
+                        child: _isLoading  // Show loading if in progress
+                            ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : const Text(
                           "REGISTER",
                           style: TextStyle(
                             fontFamily: 'Digitalt',
@@ -251,7 +250,10 @@ class SignupScreen extends StatelessWidget {
                         const SizedBox(width: 6),
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context);
+                            Navigator.pushReplacement(  // Or pushNamed if using routes
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            );
                           },
                           child: Text(
                             "SIGN IN",
@@ -259,7 +261,7 @@ class SignupScreen extends StatelessWidget {
                               fontFamily: 'Digitalt',
                               fontWeight: FontWeight.w800,
                               fontSize: 14,
-                              color: textPink,
+                              color: SignupScreen.textPink,
                             ),
                           ),
                         ),
@@ -275,35 +277,104 @@ class SignupScreen extends StatelessWidget {
     );
   }
 
-  // Input field widget
-  static Widget _inputField({
+  // Add this method: Handle register logic
+  Future<void> _handleRegister() async {
+    final username = _usernameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (username.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final result = await _authService.register(username, email, password, confirmPassword);
+    setState(() => _isLoading = false);
+
+    if (result.success) {
+      // Success: Navigate to home (no verification)
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } else {
+      // Failure: Show error from service
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Registration failed. Try again.')),
+      );
+    }
+  }
+
+  // 🟢 Handle Google signup (mirroring login implementation)
+  Future<void> _handleGoogleSignup() async {
+    setState(() => _isGoogleLoading = true);
+    final result = await _authService.googleSignIn();
+    setState(() => _isGoogleLoading = false);
+
+    if (result.success) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Google signup failed.')),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  // Input field widget (updated to accept controller and prevent capitalization)
+  Widget _inputField({
     required IconData icon,
     required String hint,
+    TextEditingController? controller,
     bool obscure = false,
   }) {
     return Container(
       height: 52,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: textPink, width: 1.4),
+        border: Border.all(color: SignupScreen.textPink, width: 1.4),
         color: Colors.white.withOpacity(0.4),
       ),
       child: TextField(
+        controller: controller,  // Use controller
+        textCapitalization: TextCapitalization.none,  // Prevent auto-capitalization
         obscureText: obscure,
         style: const TextStyle(
-          fontFamily: 'Digitalt',
+          // fontFamily: 'Digitalt',  // Simplified for input (system font to avoid issues)
           fontWeight: FontWeight.w700,
           fontSize: 16,
           color: Colors.black,
         ),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: textPink),
+          prefixIcon: Icon(icon, color: SignupScreen.textPink),
           hintText: hint,
           hintStyle: TextStyle(
             fontFamily: 'Digitalt',
             fontWeight: FontWeight.w700,
             fontSize: 14,
-            color: textPink,
+            color: SignupScreen.textPink,
           ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -313,17 +384,17 @@ class SignupScreen extends StatelessWidget {
   }
 
   // Social button widget
-  static Widget _socialButton({
+  Widget _socialButton({
     required String text,
     required Widget icon,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          border: Border.all(color: textPink, width: 1.4),
+          border: Border.all(color: SignupScreen.textPink, width: 1.4),
           borderRadius: BorderRadius.circular(8),
           color: Colors.white.withOpacity(0.5),
         ),
@@ -338,7 +409,7 @@ class SignupScreen extends StatelessWidget {
                 fontFamily: 'Digitalt',
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: textPink,
+                color: SignupScreen.textPink,
               ),
             ),
           ],
@@ -348,7 +419,7 @@ class SignupScreen extends StatelessWidget {
   }
 
   // Social login dialog
-  static void _showSocialDialog(BuildContext context, String provider) {
+  void _showSocialDialog(BuildContext context, String provider) {
     showDialog(
       context: context,
       builder: (ctx) {
@@ -357,12 +428,12 @@ class SignupScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           title: Text(
-            "$provider Login",
+            "$provider Sign Up",  // Updated to Sign Up
             style: const TextStyle(
               fontFamily: 'Digitalt',
               fontWeight: FontWeight.w800,
               fontSize: 20,
-              color: textPink,
+              color: SignupScreen.textPink,
             ),
           ),
           content: Text(
@@ -381,7 +452,7 @@ class SignupScreen extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'Digitalt',
                   fontWeight: FontWeight.w700,
-                  color: textPink,
+                  color: SignupScreen.textPink,
                 ),
               ),
             ),

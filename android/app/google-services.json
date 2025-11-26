@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "149109781313",
+    "firebase_url": "https://jol-app-47422-default-rtdb.firebaseio.com",
+    "project_id": "jol-app-47422",
+    "storage_bucket": "jol-app-47422.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149109781313:android:d780bf1cc05b664797a7c0",
+        "android_client_info": {
+          "package_name": "com.example.jol_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnwNK8LLT28xeXL4LkCVpcWKE1b9imSeI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

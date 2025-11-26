@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:jol_app/screens/dashboard/dashboard_screen.dart';
+import 'package:jol_app/screens/group/group_screen.dart';
+import 'package:jol_app/screens/score%20board/score_board_screen.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+
+import '../Affiliates/affiliates_screen.dart';
+import '../play/paly_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,11 +18,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const Center(child: Text("History Screen")),
-    const Center(child: Text("Affiliates Screen")),
-    const Center(child: Text("Play Screen")),
-    const Center(child: Text("Group Screen")),
-    const Center(child: Text("Scores Screen")),
+    DashboardScreen(),
+    AffiliatesScreen(),
+    PlayScreen(),
+    GroupsScreen(),
+    ScoreBoardScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -81,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Center(
                       child: Icon(
-                        MdiIcons.playOutline,
+                        _selectedIndex == 2 ? MdiIcons.play : MdiIcons.playOutline,
                         size: 38,
                         color: const Color(0xFFF82A87), // main pink
                       ),
