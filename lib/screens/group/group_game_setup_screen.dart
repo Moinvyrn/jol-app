@@ -1,4 +1,4 @@
-// group_game_setup_screen.dart - UPDATED WITH ONLINE STATUS
+// group_game_setup_screen.dart - UPDATED
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -6,12 +6,11 @@ import '../play/controller/game_controller.dart';
 import '../play/controller/multiplayer_game_controller.dart';
 import '../play/models/room_models.dart';
 import 'controller/group_controller.dart';
+import 'services/group_service.dart'; // ← ADDED THIS IMPORT
 import 'group_waiting_lobby_screen.dart';
 import 'models/group_metadata.dart';
-import 'package:jol_app/screens/play/controller/game_controller.dart';
 import 'package:jol_app/screens/play/controller/multiplayer_game_controller.dart'
-as multiplayer; // ← Add this alias
-
+as multiplayer;
 
 class GroupGameSetupScreen extends StatefulWidget {
   final String groupId;
@@ -34,24 +33,20 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
 
   final FirebaseDatabase _database = FirebaseDatabase.instance;
 
-  // Game settings
   int _gridSize = 4;
   String _mode = 'untimed';
   String _operation = 'addition';
   int _timeLimit = 300;
   int _maxHints = 2;
 
-  // Selected players (including host)
   Set<String> _selectedPlayerIds = {};
   bool _isCreatingRoom = false;
 
-  // Online status tracking
-  Map<String, String> _memberStatuses = {}; // userId -> 'online'/'offline'/'in_game'
+  Map<String, String> _memberStatuses = {};
 
   @override
   void initState() {
     super.initState();
-    // Auto-select host
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = context.read<GroupController>();
       _selectedPlayerIds.add(controller.userId);
@@ -123,12 +118,10 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
                 );
               }
 
-              // Get available members (not in-game)
               final allMembers = group.members.values
                   .where((m) => m.id != controller.userId)
                   .toList();
 
-              // Separate online and offline members
               final onlineMembers = allMembers
                   .where((m) => _getMemberStatus(m.id) == 'online')
                   .toList();
@@ -143,7 +136,6 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
 
               return Column(
                 children: [
-                  // Header
                   Padding(
                     padding: const EdgeInsets.all(20),
                     child: Row(
@@ -179,21 +171,18 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
                       ],
                     ),
                   ),
-
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // SECTION 1: Select Players
                           _buildSectionHeader(
                             "SELECT PLAYERS",
                             "${_selectedPlayerIds.length}/4 Selected",
                           ),
                           const SizedBox(height: 12),
 
-                          // Host (always included)
                           _buildPlayerTile(
                             member: group.members[controller.userId]!,
                             isHost: true,
@@ -204,7 +193,6 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
 
                           const SizedBox(height: 12),
 
-                          // Online Members
                           if (onlineMembers.isNotEmpty) ...[
                             const Text(
                               "ONLINE",
@@ -217,8 +205,10 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
                             ),
                             const SizedBox(height: 8),
                             ...onlineMembers.map((member) {
-                              final isSelected = _selectedPlayerIds.contains(member.id);
-                              final canSelect = _selectedPlayerIds.length < 4 || isSelected;
+                              final isSelected =
+                              _selectedPlayerIds.contains(member.id);
+                              final canSelect =
+                                  _selectedPlayerIds.length < 4 || isSelected;
 
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
@@ -244,7 +234,6 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
                             const SizedBox(height: 12),
                           ],
 
-                          // Offline Members (can still be selected)
                           if (offlineMembers.isNotEmpty) ...[
                             const Text(
                               "OFFLINE",
@@ -257,8 +246,10 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
                             ),
                             const SizedBox(height: 8),
                             ...offlineMembers.map((member) {
-                              final isSelected = _selectedPlayerIds.contains(member.id);
-                              final canSelect = _selectedPlayerIds.length < 4 || isSelected;
+                              final isSelected =
+                              _selectedPlayerIds.contains(member.id);
+                              final canSelect =
+                                  _selectedPlayerIds.length < 4 || isSelected;
 
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
@@ -284,7 +275,6 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
                             const SizedBox(height: 12),
                           ],
 
-                          // In-Game Members (cannot be selected)
                           if (inGameMembers.isNotEmpty) ...[
                             const Text(
                               "IN GAME",
@@ -331,7 +321,6 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
 
                           const SizedBox(height: 24),
 
-                          // SECTION 2: Game Settings
                           _buildSectionHeader("GAME SETTINGS", ""),
                           const SizedBox(height: 12),
 
@@ -392,7 +381,8 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
                             _buildSettingCard(
                               title: "Time Limit",
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
                                 children: [180, 300, 420, 600].map((seconds) {
                                   return _buildTimeOption(seconds);
                                 }).toList(),
@@ -414,12 +404,12 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
 
                           const SizedBox(height: 32),
 
-                          // Start Game Button
                           SizedBox(
                             width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
-                              onPressed: (_selectedPlayerIds.length >= 2 && !_isCreatingRoom)
+                              onPressed: (_selectedPlayerIds.length >= 2 &&
+                                  !_isCreatingRoom)
                                   ? () => _startGame(controller, group)
                                   : null,
                               style: ElevatedButton.styleFrom(
@@ -794,6 +784,7 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
     );
   }
 
+  // ========== UPDATED _startGame METHOD ==========
   Future<void> _startGame(GroupController controller, Group group) async {
     if (_selectedPlayerIds.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -816,7 +807,7 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
             : multiplayer.PuzzleOperation.subtraction,
       );
 
-      // Create room settings
+      // Create settings
       final settings = RoomSettings(
         gridSize: _gridSize,
         mode: _mode,
@@ -826,15 +817,17 @@ class _GroupGameSetupScreenState extends State<GroupGameSetupScreen> {
         maxPlayers: 4,
       );
 
-      // Start game and get room code
-      final roomCode = await controller.startGroupGame(
+      // ========== USE GroupService to start game ==========
+      final groupService = GroupService();
+      final roomCode = await groupService.startGroupGame(
         groupId: group.metadata.id,
+        hostId: controller.userId,
+        hostName: controller.userName,
         settings: settings,
         puzzle: puzzle,
       );
 
       if (roomCode != null && mounted) {
-        // Navigate to waiting lobby (same flow as regular multiplayer)
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

@@ -3,6 +3,8 @@ import 'package:jol_app/screens/auth/services/auth_services.dart';
 import 'package:jol_app/screens/auth/signup_screen.dart';
 import 'package:jol_app/screens/bnb/home_screen.dart';
 
+import 'forget_password_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -89,13 +91,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Align(
                         alignment: Alignment.centerRight,
-                        child: Text(
-                          "FORGOT PASSWORD?",
-                          style: const TextStyle(
-                            fontFamily: 'Digitalt',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: Color(0xFFF82A87),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            "FORGOT PASSWORD?",
+                            style: TextStyle(
+                              fontFamily: 'Digitalt',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: Color(0xFFF82A87),
+                            ),
                           ),
                         ),
                       ),
@@ -276,9 +288,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result.success) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -294,9 +307,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isGoogleLoading = false);
 
     if (result.success) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

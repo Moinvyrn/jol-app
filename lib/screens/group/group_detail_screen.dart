@@ -24,7 +24,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   static const Color textPurple = Color(0xFFC42AF8);
 
   late TabController _tabController;
-  GroupController? _controller; // Store reference to controller
+  GroupController? _controller;
 
   @override
   void initState() {
@@ -32,7 +32,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     _tabController = TabController(length: 3, vsync: this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Store the controller reference
       _controller = context.read<GroupController>();
       _controller?.listenToGroup(widget.groupId);
     });
@@ -41,7 +40,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    // Use the stored controller reference instead of context.read
     _controller?.stopListeningToGroup();
     super.dispose();
   }
@@ -245,7 +243,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         fontWeight: FontWeight.bold,
                       ),
                       tabs: const [
-                        Tab(text: "   MEMBERS   ",),
+                        Tab(text: "   MEMBERS   "),
                         Tab(text: "   HISTORY   "),
                         Tab(text: "   LEADERBOARD   "),
                       ],
@@ -276,7 +274,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           final group = controller.currentGroup;
           if (group == null) return const SizedBox.shrink();
 
-          // Only show button if user is a member
           if (!group.isMember(controller.userId)) {
             return const SizedBox.shrink();
           }
@@ -284,7 +281,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           return FloatingActionButton.extended(
             backgroundColor: textGreen,
             onPressed: () {
-              // Navigate to game setup screen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -310,7 +306,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  // Stat Item Widget
   Widget _buildStatItem({
     required IconData icon,
     required String label,
@@ -342,7 +337,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  // MEMBERS TAB
   Widget _buildMembersTab(Group group, GroupController controller) {
     final members = group.members.values.toList();
     final currentUserId = controller.userId;
@@ -485,7 +479,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  // HISTORY TAB
   Widget _buildHistoryTab(Group group) {
     final games = group.sortedGameHistory;
 
@@ -638,7 +631,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  // LEADERBOARD TAB
   Widget _buildLeaderboardTab(Group group) {
     final leaderboard = group.sortedMembersByWins;
 
@@ -674,11 +666,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   final member = leaderboard[index];
                   final rank = index + 1;
                   final medalColor = rank == 1
-                      ? const Color(0xFFFFD700) // Gold
+                      ? const Color(0xFFFFD700)
                       : rank == 2
-                      ? const Color(0xFFC0C0C0) // Silver
+                      ? const Color(0xFFC0C0C0)
                       : rank == 3
-                      ? const Color(0xFFCD7F32) // Bronze
+                      ? const Color(0xFFCD7F32)
                       : Colors.grey;
 
                   return Container(
@@ -776,12 +768,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  // Format Date
   String _formatDate(DateTime date) {
     return "${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
   }
 
-  // Group Info Dialog
   void _showGroupInfoDialog(BuildContext context, Group group) {
     final controller = context.read<GroupController>();
 
@@ -869,7 +859,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         ),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(confirmContext, false),
+                            onPressed: () =>
+                                Navigator.pop(confirmContext, false),
                             child: const Text("Cancel"),
                           ),
                           TextButton(
@@ -886,12 +877,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     if (confirm == true) {
                       await controller.leaveGroup(group.metadata.id);
 
-                      // Close dialogs and navigate back
                       if (dialogContext.mounted) {
-                        Navigator.pop(dialogContext); // Close info dialog
+                        Navigator.pop(dialogContext);
                       }
                       if (context.mounted) {
-                        Navigator.pop(context); // Go back to groups list
+                        Navigator.pop(context);
                       }
                     }
                   },
@@ -927,18 +917,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showStartGameDialog(BuildContext context, Group group) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider.value(
-          value: context.read<GroupController>(),
-          child: GroupGameSetupScreen(groupId: group.metadata.id),
-        ),
       ),
     );
   }

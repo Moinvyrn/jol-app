@@ -22,7 +22,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const Color textBlue = Color(0xFF0734A5);
   static const Color textGreen = Color(0xFF43AC45);
   static const Color textPink = Color(0xFFF82A87);
@@ -86,8 +86,44 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // ✅ Add observer to detect when app resumes
+    WidgetsBinding.instance.addObserver(this);
     _loadUserProfile();
     _loadWallet();
+  }
+
+  @override
+  void dispose() {
+    // ✅ Remove observer when widget is disposed
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // ✅ Detect when app lifecycle changes (e.g., returning from another screen)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // When app resumes (comes back to foreground), refresh wallet
+    if (state == AppLifecycleState.resumed) {
+      _refreshWalletSilently();
+    }
+  }
+
+  // ✅ NEW: Silent refresh method that updates without showing loading state
+  Future<void> _refreshWalletSilently() async {
+    try {
+      final walletResult = await _walletService.getWallet();
+
+      if (mounted && walletResult.success && walletResult.data != null) {
+        setState(() {
+          _wallet = walletResult.data;
+          _cachedWallet = walletResult.data;
+        });
+      }
+    } catch (e) {
+      print('Silent wallet refresh failed: $e');
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -132,12 +168,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadWallet() async {
-    // Check if we already have cached wallet data
+    // ✅ CHANGED: Always fetch fresh data, but use cache for immediate display
     if (_hasLoadedWalletOnce && _cachedWallet != null) {
       setState(() {
         _wallet = _cachedWallet;
         _isLoadingWallet = false;
       });
+      // Still fetch fresh data in background
+      _refreshWalletSilently();
       return;
     }
 
@@ -284,13 +322,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         // 🔔 Notification Bell
                         InkWell(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            // ✅ Refresh wallet when returning from notifications
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const NotificationScreen(),
                               ),
                             );
+                            _refreshWalletSilently();
                           },
                           child: Container(
                             width: 30,
@@ -316,13 +356,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         // 👤 Profile Avatar
                         InkWell(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            // ✅ Refresh wallet when returning from account screen
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const AccountScreen(),
                               ),
                             );
+                            _refreshWalletSilently();
                           },
                           child: _buildProfileAvatar(),
                         ),

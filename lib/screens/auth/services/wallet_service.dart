@@ -43,7 +43,8 @@ class RedeemResult {
 }
 
 class WalletService {
-  final String baseUrl = 'http://nonabstemiously-stocky-cynthia.ngrok-free.dev/api/v1';
+  // ✅ FIXED: Use HTTPS to match your other endpoints
+  final String baseUrl = 'https://nonabstemiously-stocky-cynthia.ngrok-free.dev/api/v1';
   final SecureStorageService _storage = SecureStorageService();
 
   // Coin value constant (points needed per coin)
@@ -66,15 +67,14 @@ class WalletService {
         );
       }
 
-      final csrfToken = await _getCsrfToken();
-
+      // ✅ FIXED: Removed CSRF token for GET requests (not needed)
       final headers = {
         'accept': 'application/json',
         'Authorization': 'Token $token',
       };
-      if (csrfToken != null) headers['X-CSRFTOKEN'] = csrfToken;
 
       print('GET Wallet - URL: $baseUrl/user/wallet/');
+      print('GET Wallet - Token: ${token.substring(0, 10)}...');
 
       final response = await http.get(
         Uri.parse('$baseUrl/user/wallet/'),
@@ -190,7 +190,6 @@ class WalletService {
         try {
           final errorData = jsonDecode(response.body);
           if (errorData is Map<String, dynamic>) {
-            // Check for specific errors
             if (errorData.containsKey('error')) {
               errorMsg = errorData['error'] as String;
             } else {
@@ -267,15 +266,33 @@ class WalletService {
 
       print('POST Redeem - Body: ${jsonEncode(body)}');
       print('POST Redeem - Points needed: ${coins * COIN_VALUE}');
+      print('POST Redeem - Token: ${token.substring(0, 10)}...');
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/wallet/redeem/'),
+      // ✅ FIXED: Handle 307 redirect by following it manually
+      var response = await http.post(
+        Uri.parse('$baseUrl/user/wallet/redeem/'),
         headers: headers,
         body: jsonEncode(body),
       );
 
       print('POST Redeem - Status: ${response.statusCode}');
       print('POST Redeem - Response: ${response.body}');
+
+      // ✅ FIXED: If redirected, follow the redirect with POST
+      if (response.statusCode == 307 || response.statusCode == 308) {
+        final redirectUrl = response.headers['location'];
+        print('POST Redeem - Following redirect to: $redirectUrl');
+
+        if (redirectUrl != null) {
+          response = await http.post(
+            Uri.parse(redirectUrl),
+            headers: headers,
+            body: jsonEncode(body),
+          );
+          print('POST Redeem (after redirect) - Status: ${response.statusCode}');
+          print('POST Redeem (after redirect) - Response: ${response.body}');
+        }
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
@@ -291,7 +308,6 @@ class WalletService {
         try {
           final errorData = jsonDecode(response.body);
           if (errorData is Map<String, dynamic>) {
-            // Check for specific errors
             if (errorData.containsKey('error')) {
               errorMsg = errorData['error'] as String;
             } else {
@@ -351,10 +367,11 @@ class WalletService {
   }
 
   /// Get CSRF token
+  /// ✅ FIXED: Also use HTTPS for CSRF endpoint
   Future<String?> _getCsrfToken() async {
     try {
       final response = await http.get(
-        Uri.parse('http://nonabstemiously-stocky-cynthia.ngrok-free.dev/api/auth/csrf/'),
+        Uri.parse('https://nonabstemiously-stocky-cynthia.ngrok-free.dev/api/auth/csrf/'),
         headers: {'accept': 'application/json'},
       );
       if (response.statusCode == 200) {

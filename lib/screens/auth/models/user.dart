@@ -70,9 +70,10 @@ class UserProfile {
   final DateTime? birthDate;
   final String? avatar;
   final String referralCode;
+  final String referralLink;
   final int? referredBy;
   final int totalReferrals;
-  final Wallet? wallet;
+  final int availableGamePoints;
 
   UserProfile({
     this.bio,
@@ -80,9 +81,10 @@ class UserProfile {
     this.birthDate,
     this.avatar,
     required this.referralCode,
+    required this.referralLink,
     this.referredBy,
     this.totalReferrals = 0,
-    this.wallet,
+    this.availableGamePoints = 0,
   });
 
   // Parse UserProfile from JSON - NO USER FIELD
@@ -95,9 +97,10 @@ class UserProfile {
           : null,
       avatar: json['avatar'] as String?,
       referralCode: json['referral_code'] as String? ?? '',
+      referralLink: json['referral_link'] as String? ?? '',
       referredBy: json['referred_by'] as int?,
       totalReferrals: json['total_referrals'] as int? ?? 0,
-      wallet: json['wallet'] != null ? Wallet.fromJson(json['wallet']) : null,
+      availableGamePoints: json['available_game_points'] as int? ?? 0,
     );
   }
 
@@ -107,7 +110,8 @@ class UserProfile {
       'bio': bio,
       'location': location,
       'birth_date': birthDate?.toIso8601String().split('T')[0],
-      // avatar, referral_code, total_referrals, wallet are read-only
+      // avatar, referral_code, referral_link, total_referrals,
+      // available_game_points are read-only
     };
   }
 
@@ -118,9 +122,10 @@ class UserProfile {
     DateTime? birthDate,
     String? avatar,
     String? referralCode,
+    String? referralLink,
     int? referredBy,
     int? totalReferrals,
-    Wallet? wallet,
+    int? availableGamePoints,
   }) {
     return UserProfile(
       bio: bio ?? this.bio,
@@ -128,9 +133,10 @@ class UserProfile {
       birthDate: birthDate ?? this.birthDate,
       avatar: avatar ?? this.avatar,
       referralCode: referralCode ?? this.referralCode,
+      referralLink: referralLink ?? this.referralLink,
       referredBy: referredBy ?? this.referredBy,
       totalReferrals: totalReferrals ?? this.totalReferrals,
-      wallet: wallet ?? this.wallet,
+      availableGamePoints: availableGamePoints ?? this.availableGamePoints,
     );
   }
 
@@ -138,6 +144,7 @@ class UserProfile {
   String toString() {
     return 'UserProfile(bio: $bio, location: $location, '
         'birthDate: $birthDate, avatar: $avatar, referralCode: $referralCode, '
-        'referredBy: $referredBy, totalReferrals: $totalReferrals, wallet: $wallet)';
+        'referralLink: $referralLink, referredBy: $referredBy, '
+        'totalReferrals: $totalReferrals, availableGamePoints: $availableGamePoints)';
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
+import '../models/password_reset_request.dart';
 import '../models/user.dart';
 import '../models/register_request.dart';
 import '../models/login_request.dart';
@@ -18,6 +19,30 @@ class AuthResult {
 class AuthService {
   final String baseUrl = 'https://nonabstemiously-stocky-cynthia.ngrok-free.dev/api';
   final SecureStorageService _storage = SecureStorageService();
+
+  /// Process referral after successful authentication
+  Future<void> _processReferralAfterAuth(String token) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/v1/user/process-referral/'),
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ Referral processed successfully');
+      } else {
+        print('⚠️ Referral processing failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('⚠️ Referral processing error: $e');
+      // Don't fail the auth flow if referral fails
+    }
+  }
 
   /// ✅ Correct implementation for new google_sign_in API
   Future<AuthResult> googleSignIn() async {
@@ -71,6 +96,9 @@ class AuthService {
 
         if (token != null) {
           await _storage.saveToken(token);
+
+          // 🔥 Process referral after successful Google sign-in
+          await _processReferralAfterAuth(token);
         }
 
         final userData = data['user'] ?? {};
@@ -140,6 +168,10 @@ class AuthService {
         if (token != null) {
           await _storage.saveToken(token);
           await _storage.saveUserId(data['user']['id'].toString());
+
+          // 🔥 Process referral after successful login
+          await _processReferralAfterAuth(token);
+
           final user = data['user'] != null
               ? User.fromJson(data['user'])
               : User(
@@ -183,9 +215,9 @@ class AuthService {
   Future<AuthResult> register(
       String username, String email, String password1, String password2) async {
     try {
-      print('Starting registration for username: $username, email: $email');  // Debug: Inputs
+      print('Starting registration for username: $username, email: $email');
       final csrfToken = await _getCsrfToken();
-      print('Fetched CSRF token: ${csrfToken ?? "NULL (missing)"}');  // Debug: CSRF
+      print('Fetched CSRF token: ${csrfToken ?? "NULL (missing)"}');
 
       final request = RegisterRequest(
         username: username,
@@ -194,7 +226,7 @@ class AuthService {
         password2: password2,
       );
       final requestBody = jsonEncode(request.toJson());
-      print('Request body: $requestBody');  // Debug: Payload
+      print('Request body: $requestBody');
 
       final headers = {
         'accept': 'application/json',
@@ -202,22 +234,26 @@ class AuthService {
       };
       if (csrfToken != null) headers['X-CSRFTOKEN'] = csrfToken;
 
-      print('Headers: $headers');  // Debug: Headers
+      print('Headers: $headers');
       final response = await http.post(
         Uri.parse('$baseUrl/auth/registration/'),
         headers: headers,
         body: requestBody,
       );
 
-      print('Response status: ${response.statusCode}');  // Debug: Status
-      print('Response body: ${response.body}');  // Debug: Full body (key here!)
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        print('Decoded data: $data');  // Debug: Parsed JSON
+        print('Decoded data: $data');
         final token = data['key'];
         if (token != null) {
           await _storage.saveToken(token);
+
+          // 🔥 Process referral after successful registration
+          await _processReferralAfterAuth(token);
+
           final user = data['user'] != null
               ? User.fromJson(data['user'])
               : User(
@@ -225,10 +261,10 @@ class AuthService {
             email: email,
             username: username,
           );
-          print('Registration success: Token saved, user: ${user.username}');  // Debug: Success
+          print('Registration success: Token saved, user: ${user.username}');
           return AuthResult(success: true, user: user);
         } else {
-          print('No token in response');  // Debug: Missing token
+          print('No token in response');
         }
       } else {
         // Parse server errors for user-friendly display
@@ -252,13 +288,136 @@ class AuthService {
           // If JSON parse fails, use raw body or generic
           errorMsg = response.body.isNotEmpty ? response.body : errorMsg;
         }
-        print('Parsed error: $errorMsg');  // Debug: Formatted error
+        print('Parsed error: $errorMsg');
         return AuthResult(success: false, error: errorMsg);
       }
       return AuthResult(success: false, error: 'Unable to create account. Please check your details (e.g., strong password, unique username/email) and try again.');
     } catch (e) {
-      print('Exception in register: $e');  // Debug: Any crash
+      print('Exception in register: $e');
       return AuthResult(success: false, error: 'Connection issue. Please check your internet and try again.');
+    }
+  }
+
+  // ------------------ PASSWORD RESET ------------------ //
+  Future<AuthResult> requestPasswordReset(String email) async {
+    try {
+      print('Requesting password reset for email: $email');
+      final csrfToken = await _getCsrfToken();
+      print('Fetched CSRF token: ${csrfToken ?? "NULL (missing)"}');
+
+      final request = PasswordResetRequest(email: email);
+      final requestBody = jsonEncode(request.toJson());
+      print('Request body: $requestBody');
+
+      final headers = {
+        'accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+      if (csrfToken != null) headers['X-CSRFTOKEN'] = csrfToken;
+
+      print('Headers: $headers');
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/password/reset/'),
+        headers: headers,
+        body: requestBody,
+      );
+
+      print('Password reset response status: ${response.statusCode}');
+      print('Password reset response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return AuthResult(success: true);
+      } else {
+        // Parse server errors for user-friendly display
+        String errorMsg = 'Unable to send password reset email. Please check your email address and try again.';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData is Map<String, dynamic>) {
+            final errors = <String>[];
+            errorData.forEach((key, value) {
+              if (value is List) {
+                errors.addAll(value.map((e) => '$key: ${e.toString()}'));
+              } else if (value is String) {
+                errors.add('$key: $value');
+              }
+            });
+            if (errors.isNotEmpty) {
+              errorMsg = errors.join('\n');
+            }
+          }
+        } catch (_) {
+          errorMsg = response.body.isNotEmpty ? response.body : errorMsg;
+        }
+        print('Parsed error: $errorMsg');
+        return AuthResult(success: false, error: errorMsg);
+      }
+    } catch (e) {
+      print('Exception in requestPasswordReset: $e');
+      return AuthResult(success: false, error: 'Connection issue. Please check your internet and try again.');
+    }
+  }
+
+  // ------------------ LOGOUT ------------------ //
+  Future<AuthResult> logout() async {
+    try {
+      final token = await getCurrentToken();
+      final csrfToken = await _getCsrfToken();
+
+      if (token == null) {
+        // Already logged out locally
+        await _storage.clearAll();
+        return AuthResult(success: true);
+      }
+
+      final headers = {
+        'accept': 'application/json',
+        'Authorization': 'Token $token',
+      };
+      if (csrfToken != null) headers['X-CSRFTOKEN'] = csrfToken;
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/logout/'),
+        headers: headers,
+      );
+
+      print('Logout response status: ${response.statusCode}');
+      print('Logout response body: ${response.body}');
+
+      // Clear local storage regardless of server response
+      await _storage.clearAll();
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return AuthResult(success: true);
+      } else {
+        // Still return success if local storage cleared
+        // but log the server error
+        String errorMsg = 'Logged out locally but server logout may have failed.';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData is Map<String, dynamic>) {
+            final errors = <String>[];
+            errorData.forEach((key, value) {
+              if (value is List) {
+                errors.addAll(value.map((e) => '$key: ${e.toString()}'));
+              } else if (value is String) {
+                errors.add('$key: $value');
+              }
+            });
+            if (errors.isNotEmpty) {
+              errorMsg = errors.join('\n');
+            }
+          }
+        } catch (_) {
+          errorMsg = response.body.isNotEmpty ? response.body : errorMsg;
+        }
+        print('Logout warning: $errorMsg');
+        return AuthResult(success: true); // Still successful locally
+      }
+    } catch (e) {
+      print('Exception in logout: $e');
+      // Clear local storage even if server call fails
+      await _storage.clearAll();
+      return AuthResult(success: true); // Local logout successful
     }
   }
 
@@ -275,10 +434,6 @@ class AuthService {
       }
     } catch (_) {}
     return null;
-  }
-
-  Future<void> logout() async {
-    await _storage.deleteToken();
   }
 
   Future<String?> getCurrentToken() async {

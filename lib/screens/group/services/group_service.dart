@@ -1,7 +1,7 @@
-// group_service.dart - Group Management Service
+// group_service.dart - Complete Group Management Service
 import 'dart:math';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../play/models/room_models.dart';
 import '../../play/services/room_service.dart';
@@ -9,70 +9,22 @@ import '../models/group_metadata.dart';
 
 class GroupService {
   final FirebaseDatabase _database = FirebaseDatabase.instance;
+  final RoomService _roomService = RoomService();
 
-  Future<void> diagnoseFirebaseStructure() async {
-    try {
-      debugPrint('🔍 === FIREBASE DIAGNOSTIC START ===');
+  // =========================================================================
+  // GROUP CODE GENERATION
+  // =========================================================================
 
-      final snapshot = await _database.ref('groups').get();
-
-      if (!snapshot.exists) {
-        debugPrint('❌ No groups node exists in Firebase');
-        return;
-      }
-
-      debugPrint('✅ Groups node exists');
-      debugPrint('Data type: ${snapshot.value.runtimeType}');
-
-      if (snapshot.value is Map) {
-        final map = snapshot.value as Map;
-        debugPrint('📊 Groups stored as Map');
-        debugPrint('Total groups: ${map.length}');
-
-        // Show first group structure
-        if (map.isNotEmpty) {
-          final firstKey = map.keys.first;
-          final firstValue = map[firstKey];
-          debugPrint('\n📝 First Group Sample:');
-          debugPrint('Key: $firstKey');
-          debugPrint('Value type: ${firstValue.runtimeType}');
-          debugPrint('Value: $firstValue');
-        }
-      } else if (snapshot.value is List) {
-        final list = snapshot.value as List;
-        debugPrint('📊 Groups stored as List');
-        debugPrint('Total items: ${list.length}');
-
-        // Show first non-null item
-        for (int i = 0; i < list.length; i++) {
-          if (list[i] != null) {
-            debugPrint('\n📝 First Non-Null Item:');
-            debugPrint('Index: $i');
-            debugPrint('Value type: ${list[i].runtimeType}');
-            debugPrint('Value: ${list[i]}');
-            break;
-          }
-        }
-      } else {
-        debugPrint('❌ Unknown data type: ${snapshot.value.runtimeType}');
-        debugPrint('Value: ${snapshot.value}');
-      }
-
-      debugPrint('🔍 === FIREBASE DIAGNOSTIC END ===\n');
-    } catch (e, stackTrace) {
-      debugPrint('❌ Diagnostic failed: $e');
-      debugPrint('Stack trace: $stackTrace');
-    }
-  }
-
-  // Generate unique group code (format: GRPXXXX)
   String _generateGroupCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final random = Random();
     return 'GRP${List.generate(4, (index) => chars[random.nextInt(chars.length)]).join()}';
   }
 
-  /// Create a new group
+  // =========================================================================
+  // CREATE GROUP
+  // =========================================================================
+
   Future<String> createGroup({
     required String creatorId,
     required String creatorName,
@@ -125,19 +77,20 @@ class GroupService {
     };
 
     await groupRef.set(groupData);
-    print('✅ Group created: $groupId with code $groupCode');
+    debugPrint('✅ Group created: $groupId with code $groupCode');
     return groupId;
   }
 
-  /// Join a group by code
+  // =========================================================================
+  // JOIN GROUP BY CODE
+  // =========================================================================
+
   Future<bool> joinGroupByCode({
     required String groupCode,
     required String userId,
     required String userName,
   }) async {
     try {
-      // Call this in your GroupController's init or loadMyGroups:
-      await diagnoseFirebaseStructure();
       // Find group by code
       final snapshot = await _database
           .ref('groups')
@@ -146,7 +99,7 @@ class GroupService {
           .get();
 
       if (!snapshot.exists) {
-        print('❌ Group not found with code: $groupCode');
+        debugPrint('❌ Group not found with code: $groupCode');
         return false;
       }
 
@@ -158,8 +111,8 @@ class GroupService {
       // Check if already a member
       if (groupData['members'] != null &&
           groupData['members'][userId] != null) {
-        print('⚠️ User already in group');
-        return true; // Already member, consider success
+        debugPrint('⚠️ User already in group');
+        return true;
       }
 
       // Add member
@@ -177,15 +130,18 @@ class GroupService {
         'lastActivity': ServerValue.timestamp,
       });
 
-      print('✅ User $userId joined group $groupId');
+      debugPrint('✅ User $userId joined group $groupId');
       return true;
     } catch (e) {
-      print('❌ Error joining group: $e');
+      debugPrint('❌ Error joining group: $e');
       return false;
     }
   }
 
-  /// Join a group by ID (direct)
+  // =========================================================================
+  // JOIN GROUP BY ID (Direct)
+  // =========================================================================
+
   Future<bool> joinGroup({
     required String groupId,
     required String userId,
@@ -196,7 +152,7 @@ class GroupService {
       final snapshot = await groupRef.get();
 
       if (!snapshot.exists) {
-        print('❌ Group not found: $groupId');
+        debugPrint('❌ Group not found: $groupId');
         return false;
       }
 
@@ -205,7 +161,7 @@ class GroupService {
       // Check if already a member
       if (groupData['members'] != null &&
           groupData['members'][userId] != null) {
-        print('⚠️ User already in group');
+        debugPrint('⚠️ User already in group');
         return true;
       }
 
@@ -224,15 +180,18 @@ class GroupService {
         'lastActivity': ServerValue.timestamp,
       });
 
-      print('✅ User $userId joined group $groupId');
+      debugPrint('✅ User $userId joined group $groupId');
       return true;
     } catch (e) {
-      print('❌ Error joining group: $e');
+      debugPrint('❌ Error joining group: $e');
       return false;
     }
   }
 
-  /// Browse all public groups (paginated)
+  // =========================================================================
+  // BROWSE PUBLIC GROUPS
+  // =========================================================================
+
   Future<List<Group>> browseGroups({int limit = 20}) async {
     try {
       final snapshot = await _database
@@ -246,41 +205,11 @@ class GroupService {
         return [];
       }
 
-      // Handle both Map and List from Firebase
-      Map<String, dynamic> groupsMap;
-
-      if (snapshot.value is Map) {
-        groupsMap = Map<String, dynamic>.from(snapshot.value as Map);
-      } else if (snapshot.value is List) {
-        // Convert List to Map
-        final list = snapshot.value as List;
-        groupsMap = {};
-        for (int i = 0; i < list.length; i++) {
-          if (list[i] != null) {
-            groupsMap[i.toString()] = list[i];
-          }
-        }
-      } else {
-        debugPrint('❌ Unexpected data type: ${snapshot.value.runtimeType}');
-        return [];
-      }
-
-      List<Group> groups = [];
-
-      groupsMap.forEach((key, value) {
-        if (value != null && value is Map) {
-          try {
-            groups.add(Group.fromJson(key, value));
-          } catch (e) {
-            debugPrint('❌ Error parsing group $key: $e');
-          }
-        }
-      });
+      Map<String, dynamic> groupsMap = _convertToMap(snapshot.value);
+      List<Group> groups = _parseGroupsFromMap(groupsMap);
 
       // Sort by last activity (most recent first)
-      groups.sort((a, b) =>
-          b.stats.lastActivity.compareTo(a.stats.lastActivity)
-      );
+      groups.sort((a, b) => b.stats.lastActivity.compareTo(a.stats.lastActivity));
 
       debugPrint('✅ Loaded ${groups.length} groups for browsing');
       return groups;
@@ -291,7 +220,10 @@ class GroupService {
     }
   }
 
-  /// Search groups by name - FIXED
+  // =========================================================================
+  // SEARCH GROUPS BY NAME
+  // =========================================================================
+
   Future<List<Group>> searchGroups(String query) async {
     try {
       final snapshot = await _database.ref('groups').get();
@@ -301,25 +233,7 @@ class GroupService {
         return [];
       }
 
-      // Handle both Map and List from Firebase
-      Map<String, dynamic> groupsMap;
-
-      if (snapshot.value is Map) {
-        groupsMap = Map<String, dynamic>.from(snapshot.value as Map);
-      } else if (snapshot.value is List) {
-        // Convert List to Map
-        final list = snapshot.value as List;
-        groupsMap = {};
-        for (int i = 0; i < list.length; i++) {
-          if (list[i] != null) {
-            groupsMap[i.toString()] = list[i];
-          }
-        }
-      } else {
-        debugPrint('❌ Unexpected data type: ${snapshot.value.runtimeType}');
-        return [];
-      }
-
+      Map<String, dynamic> groupsMap = _convertToMap(snapshot.value);
       List<Group> groups = [];
 
       groupsMap.forEach((key, value) {
@@ -344,7 +258,10 @@ class GroupService {
     }
   }
 
-  /// Get user's groups
+  // =========================================================================
+  // GET USER'S GROUPS
+  // =========================================================================
+
   Future<List<Group>> getUserGroups(String userId) async {
     try {
       final snapshot = await _database.ref('groups').get();
@@ -354,25 +271,7 @@ class GroupService {
         return [];
       }
 
-      // Handle both Map and List from Firebase
-      Map<String, dynamic> groupsMap;
-
-      if (snapshot.value is Map) {
-        groupsMap = Map<String, dynamic>.from(snapshot.value as Map);
-      } else if (snapshot.value is List) {
-        // Convert List to Map
-        final list = snapshot.value as List;
-        groupsMap = {};
-        for (int i = 0; i < list.length; i++) {
-          if (list[i] != null) {
-            groupsMap[i.toString()] = list[i];
-          }
-        }
-      } else {
-        debugPrint('❌ Unexpected data type: ${snapshot.value.runtimeType}');
-        return [];
-      }
-
+      Map<String, dynamic> groupsMap = _convertToMap(snapshot.value);
       List<Group> userGroups = [];
 
       groupsMap.forEach((key, value) {
@@ -389,9 +288,7 @@ class GroupService {
       });
 
       // Sort by last activity
-      userGroups.sort((a, b) =>
-          b.stats.lastActivity.compareTo(a.stats.lastActivity)
-      );
+      userGroups.sort((a, b) => b.stats.lastActivity.compareTo(a.stats.lastActivity));
 
       debugPrint('✅ User $userId is in ${userGroups.length} groups');
       return userGroups;
@@ -402,7 +299,10 @@ class GroupService {
     }
   }
 
-  /// Start a game from group (creates temporary room)
+  // =========================================================================
+  // START GROUP GAME (Creates room with groupId tag)
+  // =========================================================================
+
   Future<String> startGroupGame({
     required String groupId,
     required String hostId,
@@ -410,51 +310,57 @@ class GroupService {
     required RoomSettings settings,
     required PuzzleData puzzle,
   }) async {
-    // Import your existing RoomService
-    final roomService = RoomService();
+    debugPrint('🎮 Starting group game for group: $groupId');
 
-    // Create temporary room (reuse existing logic)
-    final roomCode = await roomService.createRoom(
+    // Create a normal room using existing RoomService
+    final roomCode = await _roomService.createRoom(
       hostId: hostId,
       hostName: hostName,
       settings: settings,
       puzzle: puzzle,
     );
 
-    // Link room to group
+    // Tag the room with groupId
     await _database.ref('rooms/$roomCode').update({
       'groupId': groupId,
     });
 
-    // Update group last activity
-    await _database.ref('groups/$groupId/stats').update({
-      'lastActivity': ServerValue.timestamp,
-    });
+    // Update group's last activity
+    await _database.ref('groups/$groupId/stats/lastActivity')
+        .set(ServerValue.timestamp);
 
-    print('✅ Group game started: room $roomCode for group $groupId');
+    debugPrint('✅ Room $roomCode created for group $groupId');
     return roomCode;
   }
 
-  /// Record game result after completion
-  Future<void> recordGameResult({
+  // =========================================================================
+  // RECORD GAME RESULTS (Call after game ends)
+  // =========================================================================
+
+  Future<void> recordGameResults({
     required String groupId,
     required String roomCode,
-    required List<String> playerIds,
-    required Map<String, int> scores,
-    required String? winnerId,
-    required Map<String, dynamic> settings,
+    required Room room,
   }) async {
     try {
-      final gameRef = _database.ref('groups/$groupId/gameHistory').push();
-      final gameId = gameRef.key!;
+      debugPrint('📊 Recording game results to group $groupId');
 
+      // Extract data from room
+      final playerIds = room.players.keys.toList();
+      final scores = <String, int>{};
+      room.players.forEach((id, player) {
+        scores[id] = player.score;
+      });
+
+      // Create game record in history
+      final gameRef = _database.ref('groups/$groupId/gameHistory').push();
       await gameRef.set({
         'roomCode': roomCode,
         'playerIds': playerIds,
         'scores': scores,
-        'winnerId': winnerId,
+        'winnerId': room.winnerId,
         'timestamp': ServerValue.timestamp,
-        'settings': settings,
+        'settings': room.settings.toJson(),
       });
 
       // Update group stats
@@ -463,27 +369,31 @@ class GroupService {
         'lastActivity': ServerValue.timestamp,
       });
 
-      // Update member stats
+      // Update each player's stats
       for (String playerId in playerIds) {
         await _database.ref('groups/$groupId/members/$playerId').update({
           'gamesPlayed': ServerValue.increment(1),
         });
       }
 
-      // Update winner stats
-      if (winnerId != null) {
-        await _database.ref('groups/$groupId/members/$winnerId').update({
+      // Update winner's stats
+      if (room.winnerId != null) {
+        await _database.ref('groups/$groupId/members/${room.winnerId}').update({
           'wins': ServerValue.increment(1),
         });
       }
 
-      print('✅ Game result recorded: $gameId in group $groupId');
+      debugPrint('✅ Game results recorded successfully');
     } catch (e) {
-      print('❌ Error recording game result: $e');
+      debugPrint('❌ Error recording results: $e');
+      rethrow;
     }
   }
 
-  /// Leave a group
+  // =========================================================================
+  // LEAVE GROUP
+  // =========================================================================
+
   Future<void> leaveGroup(String groupId, String userId) async {
     try {
       final groupRef = _database.ref('groups/$groupId');
@@ -492,7 +402,7 @@ class GroupService {
       // Check if user is admin
       final memberSnapshot = await memberRef.get();
       if (!memberSnapshot.exists) {
-        print('⚠️ User not in group');
+        debugPrint('⚠️ User not in group');
         return;
       }
 
@@ -513,7 +423,7 @@ class GroupService {
           await groupRef.child('members/$otherMemberId').update({
             'role': 'admin',
           });
-          print('✅ Admin transferred to $otherMemberId');
+          debugPrint('✅ Admin transferred to $otherMemberId');
         }
       }
 
@@ -529,16 +439,19 @@ class GroupService {
       // Delete group if no members left
       if (memberCount == 1) {
         await groupRef.remove();
-        print('✅ Group deleted (no members left)');
+        debugPrint('✅ Group deleted (no members left)');
       } else {
-        print('✅ User $userId left group $groupId');
+        debugPrint('✅ User $userId left group $groupId');
       }
     } catch (e) {
-      print('❌ Error leaving group: $e');
+      debugPrint('❌ Error leaving group: $e');
     }
   }
 
-  /// Listen to group updates (real-time)
+  // =========================================================================
+  // LISTEN TO GROUP (Real-time updates)
+  // =========================================================================
+
   Stream<Group> listenToGroup(String groupId) {
     return _database.ref('groups/$groupId').onValue.map((event) {
       if (!event.snapshot.exists) {
@@ -548,7 +461,24 @@ class GroupService {
     });
   }
 
-  /// Check if group exists by code
+  // =========================================================================
+  // GET GROUP ID FROM ROOM CODE
+  // =========================================================================
+
+  Future<String?> getGroupIdFromRoom(String roomCode) async {
+    try {
+      final snapshot = await _database.ref('rooms/$roomCode/groupId').get();
+      return snapshot.exists ? snapshot.value as String : null;
+    } catch (e) {
+      debugPrint('❌ Error getting groupId from room: $e');
+      return null;
+    }
+  }
+
+  // =========================================================================
+  // CHECK IF GROUP EXISTS BY CODE
+  // =========================================================================
+
   Future<String?> getGroupIdByCode(String code) async {
     try {
       final snapshot = await _database
@@ -564,12 +494,15 @@ class GroupService {
       final groupsMap = snapshot.value as Map;
       return groupsMap.keys.first;
     } catch (e) {
-      print('❌ Error finding group by code: $e');
+      debugPrint('❌ Error finding group by code: $e');
       return null;
     }
   }
 
-  /// Update group metadata (admin only)
+  // =========================================================================
+  // UPDATE GROUP METADATA (Admin only)
+  // =========================================================================
+
   Future<void> updateGroupMetadata({
     required String groupId,
     String? name,
@@ -584,10 +517,44 @@ class GroupService {
 
       if (updates.isNotEmpty) {
         await _database.ref('groups/$groupId/metadata').update(updates);
-        print('✅ Group metadata updated');
+        debugPrint('✅ Group metadata updated');
       }
     } catch (e) {
-      print('❌ Error updating group metadata: $e');
+      debugPrint('❌ Error updating group metadata: $e');
     }
+  }
+
+  // =========================================================================
+  // HELPER METHODS
+  // =========================================================================
+
+  Map<String, dynamic> _convertToMap(dynamic data) {
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    } else if (data is List) {
+      // Convert List to Map
+      final map = <String, dynamic>{};
+      for (int i = 0; i < data.length; i++) {
+        if (data[i] != null) {
+          map[i.toString()] = data[i];
+        }
+      }
+      return map;
+    }
+    return {};
+  }
+
+  List<Group> _parseGroupsFromMap(Map<String, dynamic> groupsMap) {
+    List<Group> groups = [];
+    groupsMap.forEach((key, value) {
+      if (value != null && value is Map) {
+        try {
+          groups.add(Group.fromJson(key, value));
+        } catch (e) {
+          debugPrint('❌ Error parsing group $key: $e');
+        }
+      }
+    });
+    return groups;
   }
 }

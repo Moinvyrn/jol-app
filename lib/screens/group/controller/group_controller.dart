@@ -1,4 +1,4 @@
-// group_controller.dart - Group Management Controller
+// group_controller.dart - Complete Group Management Controller
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../play/models/room_models.dart';
@@ -10,6 +10,7 @@ class GroupController extends ChangeNotifier {
   final String userId;
   final String userName;
 
+  // State
   List<Group> _myGroups = [];
   List<Group> _browseGroups = [];
   Group? _currentGroup;
@@ -26,7 +27,10 @@ class GroupController extends ChangeNotifier {
     loadMyGroups();
   }
 
-  // Getters
+  // =========================================================================
+  // GETTERS
+  // =========================================================================
+
   List<Group> get myGroups => _myGroups;
   List<Group> get browseGroups => _browseGroups;
   Group? get currentGroup => _currentGroup;
@@ -44,7 +48,10 @@ class GroupController extends ChangeNotifier {
     return _currentGroup!.isMember(userId);
   }
 
-  // Load user's groups
+  // =========================================================================
+  // LOAD USER'S GROUPS
+  // =========================================================================
+
   Future<void> loadMyGroups() async {
     _isLoadingMyGroups = true;
     _error = null;
@@ -61,7 +68,10 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Browse public groups
+  // =========================================================================
+  // BROWSE PUBLIC GROUPS
+  // =========================================================================
+
   Future<void> loadBrowseGroups({int limit = 20}) async {
     _isLoadingBrowse = true;
     _error = null;
@@ -78,7 +88,10 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Search groups
+  // =========================================================================
+  // SEARCH GROUPS
+  // =========================================================================
+
   Future<void> searchGroups(String query) async {
     if (query.isEmpty) {
       await loadBrowseGroups();
@@ -100,7 +113,10 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Create new group
+  // =========================================================================
+  // CREATE NEW GROUP
+  // =========================================================================
+
   Future<String?> createGroup({
     required String groupName,
     String? description,
@@ -124,7 +140,10 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Join group by code
+  // =========================================================================
+  // JOIN GROUP BY CODE
+  // =========================================================================
+
   Future<bool> joinGroupByCode(String code) async {
     try {
       final success = await _groupService.joinGroupByCode(
@@ -145,7 +164,10 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Join group by ID
+  // =========================================================================
+  // JOIN GROUP BY ID
+  // =========================================================================
+
   Future<bool> joinGroup(String groupId) async {
     try {
       final success = await _groupService.joinGroup(
@@ -166,7 +188,10 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Start listening to a specific group
+  // =========================================================================
+  // START LISTENING TO A SPECIFIC GROUP
+  // =========================================================================
+
   void listenToGroup(String groupId) {
     _groupSubscription?.cancel();
     _groupSubscription = _groupService.listenToGroup(groupId).listen(
@@ -181,21 +206,33 @@ class GroupController extends ChangeNotifier {
     );
   }
 
-  // Stop listening to current group
+  // =========================================================================
+  // STOP LISTENING TO CURRENT GROUP
+  // =========================================================================
+
   void stopListeningToGroup() {
     _groupSubscription?.cancel();
     _currentGroup = null;
+    notifyListeners();
   }
 
-  // Start game from group
+  // =========================================================================
+  // START GAME FROM GROUP
+  // =========================================================================
+
   Future<String?> startGroupGame({
-    required String groupId,
     required RoomSettings settings,
     required PuzzleData puzzle,
   }) async {
+    if (_currentGroup == null) {
+      _error = 'No group selected';
+      notifyListeners();
+      return null;
+    }
+
     try {
       final roomCode = await _groupService.startGroupGame(
-        groupId: groupId,
+        groupId: _currentGroup!.metadata.id,
         hostId: userId,
         hostName: userName,
         settings: settings,
@@ -210,23 +247,20 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Record game result (call this after game ends)
+  // =========================================================================
+  // RECORD GAME RESULT (Call after game ends)
+  // =========================================================================
+
   Future<void> recordGameResult({
     required String groupId,
     required String roomCode,
-    required List<String> playerIds,
-    required Map<String, int> scores,
-    required String? winnerId,
-    required Map<String, dynamic> settings,
+    required Room room,
   }) async {
     try {
-      await _groupService.recordGameResult(
+      await _groupService.recordGameResults(
         groupId: groupId,
         roomCode: roomCode,
-        playerIds: playerIds,
-        scores: scores,
-        winnerId: winnerId,
-        settings: settings,
+        room: room,
       );
 
       // Refresh current group if viewing it
@@ -239,7 +273,10 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Leave group
+  // =========================================================================
+  // LEAVE GROUP
+  // =========================================================================
+
   Future<void> leaveGroup(String groupId) async {
     try {
       await _groupService.leaveGroup(groupId, userId);
@@ -254,7 +291,10 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Update group metadata (admin only)
+  // =========================================================================
+  // UPDATE GROUP METADATA (Admin only)
+  // =========================================================================
+
   Future<void> updateGroupMetadata({
     required String groupId,
     String? name,
@@ -274,19 +314,37 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // Get leaderboard for current group
+  // =========================================================================
+  // GET LEADERBOARD FOR CURRENT GROUP
+  // =========================================================================
+
   List<GroupMember> getLeaderboard() {
     if (_currentGroup == null) return [];
     return _currentGroup!.sortedMembersByWins;
   }
 
-  // Get recent games for current group
+  // =========================================================================
+  // GET RECENT GAMES FOR CURRENT GROUP
+  // =========================================================================
+
   List<GameRecord> getRecentGames({int limit = 10}) {
     if (_currentGroup == null) return [];
     final games = _currentGroup!.sortedGameHistory;
     return games.take(limit).toList();
   }
 
+  // =========================================================================
+  // CLEAR ERROR
+  // =========================================================================
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  // =========================================================================
+  // DISPOSE
+  // =========================================================================
 
   @override
   void dispose() {
@@ -294,4 +352,3 @@ class GroupController extends ChangeNotifier {
     super.dispose();
   }
 }
-
