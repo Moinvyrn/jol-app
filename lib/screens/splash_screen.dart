@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'auth/services/auth_services.dart';
+import 'bnb/home_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -10,17 +12,37 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+
+  final AuthService _authService = AuthService();
+
   @override
   void initState() {
     super.initState();
+    _checkAuthAndNavigate();
+  }
 
-    // Wait 3 seconds then go to OnboardingScreen
-    Timer(const Duration(seconds: 3), () {
+  Future<void> _checkAuthAndNavigate() async {
+    // Wait 3 seconds for splash screen display
+    await Future.delayed(const Duration(seconds: 3));
+
+    // Check if user is already logged in
+    final isLoggedIn = await _authService.isAuthenticated();
+
+    if (!mounted) return;
+
+    if (isLoggedIn) {
+      // User is logged in, go to HomeScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } else {
+      // User is not logged in, go to OnboardingScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const OnboardingScreen()),
       );
-    });
+    }
   }
 
   // Updated colors based on your palette

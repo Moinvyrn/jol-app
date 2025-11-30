@@ -304,9 +304,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
     if (result.success) {
       // Success: Navigate to home (no verification)
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
       );
     } else {
       // Failure: Show error from service

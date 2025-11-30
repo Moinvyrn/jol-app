@@ -35,6 +35,41 @@ class SecureStorageService {
     return await _storage.read(key: 'user_id');
   }
 
+  /// Deletes the stored user ID
+  Future<void> deleteUserId() async {
+    await _storage.delete(key: 'user_id');
+  }
+
+  /// Saves username
+  Future<void> saveUsername(String username) async {
+    await _storage.write(key: 'username', value: username);
+  }
+
+  /// Retrieves the stored username
+  Future<String?> getUsername() async {
+    return await _storage.read(key: 'username');
+  }
+
+  /// Deletes the stored username
+  Future<void> deleteUsername() async {
+    await _storage.delete(key: 'username');
+  }
+
+  /// Saves email
+  Future<void> saveEmail(String email) async {
+    await _storage.write(key: 'email', value: email);
+  }
+
+  /// Retrieves the stored email
+  Future<String?> getEmail() async {
+    return await _storage.read(key: 'email');
+  }
+
+  /// Deletes the stored email
+  Future<void> deleteEmail() async {
+    await _storage.delete(key: 'email');
+  }
+
   /// Saves complete user data after login
   Future<void> saveUserData({
     required String token,
@@ -44,15 +79,15 @@ class SecureStorageService {
   }) async {
     await saveToken(token);
     await saveUserId(userId);
-    if (username != null) await _storage.write(key: 'username', value: username);
-    if (email != null) await _storage.write(key: 'email', value: email);
+    if (username != null) await saveUsername(username);
+    if (email != null) await saveEmail(email);
   }
 
   /// Clears all stored data during logout
   Future<void> clearAll() async {
     await deleteToken();
-    await _storage.delete(key: 'user_id');
-    await _storage.delete(key: 'username');
-    await _storage.delete(key: 'email');
+    await deleteUserId();
+    await deleteUsername();
+    await deleteEmail();
   }
 }
