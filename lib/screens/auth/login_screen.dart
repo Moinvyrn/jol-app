@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:jol_app/screens/auth/services/auth_services.dart';
 import 'package:jol_app/screens/auth/signup_screen.dart';
 import 'package:jol_app/screens/bnb/home_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+import 'forget_password_screen.dart';
+
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   static const Color textBlue = Color(0xFF0734A5);
@@ -10,9 +13,20 @@ class LoginScreen extends StatelessWidget {
   static const Color textPink = Color(0xFFC42AF8);
 
   @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final AuthService _authService = AuthService();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _isGoogleLoading = false;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true, // Prevents overflow
+      resizeToAvoidBottomInset: true,
       body: Container(
         height: double.infinity,
         width: double.infinity,
@@ -21,28 +35,25 @@ class LoginScreen extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFFFFC0CB), // light pink
-              Color(0xFFADD8E6), // light blue
-              Color(0xFFE6E6FA), // lavender
+              Color(0xFFFFC0CB),
+              Color(0xFFADD8E6),
+              Color(0xFFE6E6FA),
             ],
           ),
         ),
         child: SafeArea(
           child: Stack(
             children: [
-              // Scrollable content
               SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 120), // Space for bottom elements
+                padding: const EdgeInsets.only(bottom: 120),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 80),
-
-                    // Title
                     Text(
                       'LOGIN',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontFamily: 'Digitalt',
                         fontWeight: FontWeight.w800,
                         fontSize: 28,
@@ -52,12 +63,13 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 25),
 
-                    // Email/Phone
+                    // Username / Email
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: _inputField(
                         icon: Icons.email_outlined,
-                        hint: "EMAIL/PHONE",
+                        hint: "USERNAME OR EMAIL",
+                        controller: _usernameController,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -69,6 +81,7 @@ class LoginScreen extends StatelessWidget {
                         icon: Icons.lock_outline,
                         hint: "PASSWORD",
                         obscure: true,
+                        controller: _passwordController,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -78,65 +91,75 @@ class LoginScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Align(
                         alignment: Alignment.centerRight,
-                        child: Text(
-                          "FORGOT PASSWORD?",
-                          style: TextStyle(
-                            fontFamily: 'Digitalt',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: Color(0xFFF82A87),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            "FORGOT PASSWORD?",
+                            style: TextStyle(
+                              fontFamily: 'Digitalt',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: Color(0xFFF82A87),
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
 
-                    // Divider with OR (pink)
+                    // Divider
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Row(
                         children: [
                           const Expanded(
-                            child: Divider(thickness: 1, color: textPink),
+                            child: Divider(thickness: 1, color: LoginScreen.textPink),
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               "OR",
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontFamily: 'Digitalt',
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
-                                color: textPink,
+                                color: LoginScreen.textPink,
                               ),
                             ),
                           ),
                           const Expanded(
-                            child: Divider(thickness: 1, color: textPink),
+                            child: Divider(thickness: 1, color: LoginScreen.textPink),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 24),
 
-                    // Google button
+                    // Google Login Button
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: _socialButton(
-                        text: "CONTINUE WITH GMAIL",
+                        text: _isGoogleLoading
+                            ? "SIGNING IN..."
+                            : "CONTINUE WITH GMAIL",
                         icon: Image.asset(
                           "lib/assets/images/google.png",
                           height: 22,
                           width: 22,
                         ),
-                        onTap: () {
-                          _showSocialDialog(context, "Google");
-                        },
+                        onTap: _isGoogleLoading ? null : _handleGoogleLogin,
                       ),
                     ),
                     const SizedBox(height: 14),
 
-                    // Apple button
+                    // Apple (still placeholder)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: _socialButton(
@@ -156,7 +179,7 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
 
-              // Bottom fixed elements
+              // Bottom fixed
               Positioned(
                 left: 0,
                 right: 0,
@@ -169,17 +192,23 @@ class LoginScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: textPink,
+                          backgroundColor: LoginScreen.textPink,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        onPressed: () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const HomeScreen()),
-                        ),
-                        child: const Text(
+                        onPressed: _isLoading ? null : _handleLogin,
+                        child: _isLoading
+                            ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : const Text(
                           "SIGN IN",
                           style: TextStyle(
                             fontFamily: 'Digitalt',
@@ -193,7 +222,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    // Bottom row
+                    // Signup link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -209,19 +238,18 @@ class LoginScreen extends StatelessWidget {
                         const SizedBox(width: 6),
                         InkWell(
                           onTap: () {
-                            // Navigate to signup screen
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => const SignupScreen()),
                             );
                           },
-                          child: Text(
+                          child: const Text(
                             "SIGN UP",
                             style: TextStyle(
                               fontFamily: 'Digitalt',
                               fontWeight: FontWeight.w800,
                               fontSize: 14,
-                              color: textPink,
+                              color: LoginScreen.textPink,
                             ),
                           ),
                         ),
@@ -237,35 +265,90 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // Input field widget
-  static Widget _inputField({
+  // 🟢 Handle standard login
+  Future<void> _handleLogin() async {
+    final input = _usernameController.text.trim();
+    if (input.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+
+    final bool isEmail = input.contains('@');
+    final String username = isEmail ? '' : input;
+    final String email = isEmail ? input : '';
+
+    setState(() => _isLoading = true);
+    final result = await _authService.login(
+      username,
+      email,
+      _passwordController.text,
+    );
+    setState(() => _isLoading = false);
+
+    if (result.success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Login failed.')),
+      );
+    }
+  }
+
+  // 🟢 Handle Google login
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _isGoogleLoading = true);
+    final result = await _authService.googleSignIn();
+    setState(() => _isGoogleLoading = false);
+
+    if (result.success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Google login failed.')),
+      );
+    }
+  }
+
+  // Input field
+  Widget _inputField({
     required IconData icon,
     required String hint,
+    TextEditingController? controller,
     bool obscure = false,
   }) {
     return Container(
       height: 52,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: textPink, width: 1.4),
+        border: Border.all(color: LoginScreen.textPink, width: 1.4),
         color: Colors.white.withOpacity(0.4),
       ),
       child: TextField(
+        controller: controller,
         obscureText: obscure,
         style: const TextStyle(
-          fontFamily: 'Digitalt',
           fontWeight: FontWeight.w700,
           fontSize: 16,
           color: Colors.black,
         ),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: textPink),
+          prefixIcon: Icon(icon, color: LoginScreen.textPink),
           hintText: hint,
-          hintStyle: TextStyle(
+          hintStyle: const TextStyle(
             fontFamily: 'Digitalt',
             fontWeight: FontWeight.w700,
             fontSize: 14,
-            color: textPink,
+            color: LoginScreen.textPink,
           ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -274,18 +357,18 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // Social button widget (pink text + tap handler)
-  static Widget _socialButton({
+  // Social button
+  Widget _socialButton({
     required String text,
     required Widget icon,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          border: Border.all(color: textPink, width: 1.4),
+          border: Border.all(color: LoginScreen.textPink, width: 1.4),
           borderRadius: BorderRadius.circular(8),
           color: Colors.white.withOpacity(0.5),
         ),
@@ -300,7 +383,7 @@ class LoginScreen extends StatelessWidget {
                 fontFamily: 'Digitalt',
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: textPink,
+                color: LoginScreen.textPink,
               ),
             ),
           ],
@@ -309,22 +392,20 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // Social login dialog
-  static void _showSocialDialog(BuildContext context, String provider) {
+  // Old dialog (still used for Apple placeholder)
+  void _showSocialDialog(BuildContext context, String provider) {
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text(
             "$provider Login",
             style: const TextStyle(
               fontFamily: 'Digitalt',
               fontWeight: FontWeight.w800,
               fontSize: 20,
-              color: textPink,
+              color: LoginScreen.textPink,
             ),
           ),
           content: Text(
@@ -343,7 +424,7 @@ class LoginScreen extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'Digitalt',
                   fontWeight: FontWeight.w700,
-                  color: textPink,
+                  color: LoginScreen.textPink,
                 ),
               ),
             ),

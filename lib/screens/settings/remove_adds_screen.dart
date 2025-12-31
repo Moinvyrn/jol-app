@@ -1,0 +1,277 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+class RemoveAddsScreen extends StatefulWidget {
+  const RemoveAddsScreen({super.key});
+
+  @override
+  State<RemoveAddsScreen> createState() => _RemoveAddsScreenState();
+}
+
+class _RemoveAddsScreenState extends State<RemoveAddsScreen> {
+  static const Color textPink = Color(0xFFF82A87);
+  static const Color accentPurple = Color(0xFF9B4BFF);
+
+  String _selectedDuration = "1 Month";
+
+  final Map<String, double> _options = {
+    "1 Month": 1.0,
+    "2 Months": 1.90,
+  };
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Transparent status bar
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+    );
+
+    return Scaffold(
+      body: Container(
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFC0CB),
+              Color(0xFFADD8E6),
+              Color(0xFFE6E6FA),
+            ],
+          ),
+        ),
+        child: Column(
+          children: [
+            _buildAppBar(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 10),
+
+                    // Avatar Image
+                    Center(
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundImage: const AssetImage(
+                            "lib/assets/images/settings_emoji.png"),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Title
+                    const Text(
+                      "Choose duration",
+                      style: TextStyle(
+                        fontFamily: 'Digitalt',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textPink,
+                        letterSpacing: 1,
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Dropdown for duration
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: textPink.withOpacity(0.5), width: 1.2),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedDuration,
+                          isExpanded: true,
+                          icon: const Icon(Icons.arrow_drop_down,
+                              color: textPink),
+                          items: _options.keys
+                              .map(
+                                (option) => DropdownMenuItem<String>(
+                                  value: option,
+                                  child: Text(
+                                    option,
+                                    style: const TextStyle(
+                                      fontFamily: 'Rubik',
+                                      fontSize: 16,
+                                      color: textPink,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedDuration = value!;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Duration & Amount Box
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: textPink,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Duration: ",
+                                style: const TextStyle(
+                                  fontFamily: 'Digitalt',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                _selectedDuration,
+                                style: const TextStyle(
+                                  fontFamily: 'Digitalt',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Amount: ",
+                                style: const TextStyle(
+                                  fontFamily: 'Digitalt',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                "€ ${_options[_selectedDuration]!.toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  fontFamily: 'Digitalt',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Pay Button
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () =>
+                      _showSnack("Pay ${_options[_selectedDuration]} tapped"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade900,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(
+                        Radius.circular(16),
+                      ),
+                      side: BorderSide(color: Colors.white54, width: 2),
+                    ),
+                  ),
+                  child: const Text(
+                    "Pay and remove Ad",
+                    style: TextStyle(
+                      fontFamily: 'Rubik',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 6,
+        left: 12,
+        right: 12,
+        bottom: 6,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            InkWell(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: textPink,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+            ),
+            const Spacer(),
+            const Text(
+              "Remove Ads",
+              style: TextStyle(
+                fontFamily: "Rubik",
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: Colors.black87,
+              ),
+            ),
+            const Spacer(),
+          ],
+        ),
+      ),
+    );
+  }
+}
