@@ -1,0 +1,800 @@
+// File: screens/groups/group_detail_screen.dart
+
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:jol_app/screens/group/services/group_service.dart';
+
+import 'models/group_models.dart';
+class GroupDetailScreen extends StatefulWidget {
+  final String groupCode;
+  final String userId;
+  final String userName;
+
+  const GroupDetailScreen({
+    super.key,
+    required this.groupCode,
+    required this.userId,
+    required this.userName,
+  });
+
+  @override
+  State<GroupDetailScreen> createState() => _GroupDetailScreenState();
+}
+
+class _GroupDetailScreenState extends State<GroupDetailScreen> with WidgetsBindingObserver {
+  static const Color textBlue = Color(0xFF0734A5);
+  static const Color textGreen = Color(0xFF43AC45);
+  static const Color textPink = Color(0xFFF82A87);
+  static const Color textOrange = Color(0xFFFF9800);
+
+  final GroupService _groupService = GroupService();
+  StreamSubscription<Group?>? _groupSubscription;
+  Group? _group;
+  Timer? _presenceTimer;
+
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _listenToGroup();
+    _setPresence(true);
+    _startPresenceHeartbeat();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _setPresence(false);
+    _presenceTimer?.cancel();
+    _groupSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Update presence based on app lifecycle
+    if (state == AppLifecycleState.resumed) {
+      _setPresence(true);
+      _startPresenceHeartbeat();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _setPresence(false);
+      _presenceTimer?.cancel();
+    }
+  }
+
+  void _listenToGroup() {
+    _groupSubscription = _groupService.listenToGroup(widget.groupCode).listen(
+          (group) {
+        if (!mounted) return;
+
+        if (group == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('This group no longer exists')),
+          );
+          Navigator.pop(context);
+          return;
+        }
+
+        setState(() {
+          _group = group;
+          _isLoading = false;
+        });
+      },
+      onError: (_) {
+        if (mounted) Navigator.pop(context);
+      },
+    );
+  }
+
+  void _setPresence(bool isActive) {
+    _groupService.setMemberActive(
+      widget.groupCode,
+      widget.userId,
+      isActive,
+    );
+  }
+
+  void _startPresenceHeartbeat() {
+    _presenceTimer?.cancel();
+    // Update presence every 30 seconds to show we're still active
+    _presenceTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _setPresence(true);
+    });
+  }
+
+  Future<void> _leaveGroup() async {
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Leave Group?',
+          style: TextStyle(
+            fontFamily: 'Digitalt',
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          _group?.ownerId == widget.userId
+              ? 'As the owner, leaving will transfer ownership to another member or delete the group if you\'re the last member.'
+              : 'Are you sure you want to leave this group?',
+          style: const TextStyle(
+            fontFamily: 'Rubik',
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text(
+              'CANCEL',
+              style: TextStyle(
+                fontFamily: 'Digitalt',
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'LEAVE',
+              style: TextStyle(
+                fontFamily: 'Digitalt',
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLeave == true) {
+      try {
+        await _groupService.leaveGroup(widget.groupCode, widget.userId);
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error leaving group: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  void _copyGroupCode() {
+    Clipboard.setData(ClipboardData(text: widget.groupCode));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Group code copied to clipboard!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showMemberOptions(GroupMember member) {
+    if (_group == null) return;
+
+    final isOwner = _group!.ownerId == widget.userId;
+    final currentMember = _group!.members[widget.userId];
+    final isAdmin = currentMember?.isAdmin ?? false;
+
+    // Can't manage yourself or if you're not an admin
+    if (member.id == widget.userId || (!isOwner && !isAdmin)) {
+      return;
+    }
+
+    // Admins can't manage other admins, only owner can
+    if (!isOwner && member.isAdmin) {
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: textBlue.withOpacity(0.2),
+                child: Text(
+                  member.name[0].toUpperCase(),
+                  style: const TextStyle(
+                    fontFamily: 'Digitalt',
+                    fontWeight: FontWeight.bold,
+                    color: textBlue,
+                  ),
+                ),
+              ),
+              title: Text(
+                member.name,
+                style: const TextStyle(
+                  fontFamily: 'Rubik',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                member.role.toUpperCase(),
+                style: const TextStyle(
+                  fontFamily: 'Digitalt',
+                  fontSize: 11,
+                ),
+              ),
+            ),
+            const Divider(),
+            if (isOwner && !member.isOwner) ...[
+              ListTile(
+                leading: Icon(
+                  member.isAdmin ? Icons.person : Icons.admin_panel_settings,
+                  color: textOrange,
+                ),
+                title: Text(
+                  member.isAdmin ? 'Remove Admin' : 'Make Admin',
+                  style: const TextStyle(fontFamily: 'Rubik'),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final newRole = member.isAdmin ? 'member' : 'admin';
+                  final success = await _groupService.updateMemberRole(
+                    groupCode: widget.groupCode,
+                    memberId: member.id,
+                    newRole: newRole,
+                    requesterId: widget.userId,
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Role updated successfully'
+                              : 'Failed to update role',
+                        ),
+                        backgroundColor: success ? textGreen : Colors.red,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.remove_circle, color: Colors.red),
+              title: const Text(
+                'Remove from Group',
+                style: TextStyle(
+                  fontFamily: 'Rubik',
+                  color: Colors.red,
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Remove Member?'),
+                    content: Text('Remove ${member.name} from the group?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('CANCEL'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        child: const Text('REMOVE'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true) {
+                  final success = await _groupService.removeMember(
+                    groupCode: widget.groupCode,
+                    memberId: member.id,
+                    requesterId: widget.userId,
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Member removed'
+                              : 'Failed to remove member',
+                        ),
+                        backgroundColor: success ? textGreen : Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFC0CB),
+              Color(0xFFADD8E6),
+              Color(0xFFE6E6FA),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: _isLoading
+              ? const Center(
+            child: CircularProgressIndicator(color: textPink),
+          )
+              : _group == null
+              ? const Center(
+            child: Text('Group not found'),
+          )
+              : Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          color: textPink,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Column(
+                      children: [
+                        Text(
+                          _group!.name,
+                          style: const TextStyle(
+                            fontFamily: "Rubik",
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: _copyGroupCode,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  widget.groupCode,
+                                  style: const TextStyle(
+                                    fontFamily: "Digitalt",
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: textBlue,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.copy,
+                                  size: 14,
+                                  color: textBlue,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    PopupMenuButton<String>(
+                      icon: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          color: textBlue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.more_vert,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      onSelected: (value) {
+                        if (value == 'leave') {
+                          _leaveGroup();
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'leave',
+                          child: Row(
+                            children: [
+                              Icon(Icons.exit_to_app, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text(
+                                'Leave Group',
+                                style: TextStyle(
+                                  fontFamily: 'Rubik',
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Stats
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStat(
+                        Icons.people,
+                        '${_group!.memberCount}',
+                        'Members',
+                        textBlue,
+                      ),
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: Colors.grey.shade300,
+                      ),
+                      _buildStat(
+                        Icons.circle,
+                        '${_group!.activeMemberCount}',
+                        'Active Now',
+                        textGreen,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Tabs
+              DefaultTabController(
+                length: 2,
+                child: Expanded(
+                  child: Column(
+                    children: [
+                      TabBar(
+                        labelColor: textPink,
+                        unselectedLabelColor: Colors.black54,
+                        indicatorColor: textPink,
+                        labelStyle: const TextStyle(
+                          fontFamily: 'Digitalt',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        tabs: const [
+                          Tab(text: 'ACTIVE MEMBERS'),
+                          Tab(text: 'ALL MEMBERS'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            _buildMembersList(_group!.activeMembers),
+                            _buildMembersList(_group!.allMembers),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStat(IconData icon, String value, String label, Color color) {
+    return Column(
+      children: [
+        Icon(icon, size: 28, color: color),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'Digitalt',
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Rubik',
+            fontSize: 12,
+            color: Colors.black.withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMembersList(List<GroupMember> members) {
+    if (members.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_off,
+              size: 60,
+              color: Colors.black.withOpacity(0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No members',
+              style: TextStyle(
+                fontFamily: 'Rubik',
+                fontSize: 16,
+                color: Colors.black.withOpacity(0.5),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: members.length,
+      itemBuilder: (context, index) {
+        final member = members[index];
+        return _buildMemberCard(member);
+      },
+    );
+  }
+
+  Widget _buildMemberCard(GroupMember member) {
+    final isOwner = _group!.ownerId == widget.userId;
+    final currentMember = _group!.members[widget.userId];
+    final isAdmin = currentMember?.isAdmin ?? false;
+    final canManage = (isOwner || isAdmin) &&
+        member.id != widget.userId &&
+        !(isAdmin && member.isAdmin && !isOwner);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: canManage ? () => _showMemberOptions(member) : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: textBlue.withOpacity(0.2),
+                      child: Text(
+                        member.name[0].toUpperCase(),
+                        style: const TextStyle(
+                          fontFamily: 'Digitalt',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textBlue,
+                        ),
+                      ),
+                    ),
+                    if (member.isActive)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: textGreen,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              member.name,
+                              style: const TextStyle(
+                                fontFamily: 'Rubik',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (member.id == widget.userId)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: textPink.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                "YOU",
+                                style: TextStyle(
+                                  fontFamily: "Digitalt",
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: textPink,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (member.isOwner)
+                            _buildRoleBadge('OWNER', textOrange)
+                          else if (member.isAdmin)
+                            _buildRoleBadge('ADMIN', textGreen)
+                          else
+                            _buildRoleBadge('MEMBER', textBlue),
+                          if (member.isActive) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: textGreen.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      color: textGreen,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    'Active',
+                                    style: TextStyle(
+                                      fontFamily: 'Rubik',
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: textGreen,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (canManage)
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleBadge(String role, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        role,
+        style: TextStyle(
+          fontFamily: 'Digitalt',
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
