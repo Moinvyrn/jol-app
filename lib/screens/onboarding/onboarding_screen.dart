@@ -615,7 +615,7 @@ class _HelpDialogState extends State<HelpDialog> {
                     "2.  With A2 and C, find B1 by adding them: B1 = A2 + C. For example, if A2 = 7 and C = 8, then B1 = 7 + 8 = 15.",
                     style: _instructionStyle),
                 SizedBox(height: 8),
-                Text("3.  This pattern continues as you progress in the game.",
+                Text("3.  This pattern continues as you progress in the game_screen.",
                     style: _instructionStyle),
               ],
             ),

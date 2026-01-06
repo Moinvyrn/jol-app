@@ -344,7 +344,7 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  // Input field widget (updated to accept controller and prevent capitalization)
+  // Input field widgets (updated to accept controller and prevent capitalization)
   Widget _inputField({
     required IconData icon,
     required String hint,
@@ -384,7 +384,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // Social button widget
+  // Social button widgets
   Widget _socialButton({
     required String text,
     required Widget icon,
