@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jol_app/screens/play/create_room_screen.dart';
-import 'package:jol_app/screens/play/game_screen.dart';
+import 'package:jol_app/screens/play/game_screen/game_screen.dart';
 
 import '../../constants/add_manager.dart';
 import 'join_room_screen.dart';
@@ -185,195 +185,98 @@ class _PlayScreenState extends State<PlayScreen> {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // IMPROVED AD HANDLING METHODS
+  // FIXED AD HANDLING METHODS - No more stuck loading dialogs!
   // ═══════════════════════════════════════════════════════════════
 
   /// Show ad and navigate to Join Room screen
   Future<void> _handleJoinRoom(BuildContext context) async {
-    if (_isShowingAd) return; // Prevent multiple ad triggers
+    if (_isShowingAd) return;
 
     setState(() => _isShowingAd = true);
 
     try {
-      // Check if ad is ready before showing loading
-      final bool isAdReady = _adManager.isInterstitialReady();
-
-      // Only show loading if ad is actually ready
-      if (isAdReady && mounted) {
-        _showLoadingDialog(context, "Loading...");
-      }
-
-      // Try to show ad (non-blocking)
-      final bool adShown = await _adManager.showInterstitial();
-
-      // Close loading dialog if it was shown
-      if (isAdReady && mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Preload next ad immediately
+      await _adManager.showInterstitial().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => false,
+      );
       _adManager.loadInterstitial();
-
     } catch (e) {
-      // Handle any errors gracefully
       debugPrint('Ad error: $e');
-      if (mounted) {
-        // Close loading dialog if open
-        try {
-          Navigator.of(context).pop();
-        } catch (_) {}
-      }
-    } finally {
-      setState(() => _isShowingAd = false);
+    }
 
-      // Navigate immediately after ad completes or fails
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const JoinRoomScreen(),
-          ),
-        );
-      }
+    setState(() => _isShowingAd = false);
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const JoinRoomScreen(),
+        ),
+      );
     }
   }
 
   /// Show ad and navigate to Create Room screen
   Future<void> _handleCreateRoom(BuildContext context) async {
-    if (_isShowingAd) return; // Prevent multiple ad triggers
+    if (_isShowingAd) return;
 
     setState(() => _isShowingAd = true);
 
     try {
-      // Check if ad is ready before showing loading
-      final bool isAdReady = _adManager.isInterstitialReady();
-
-      // Only show loading if ad is actually ready
-      if (isAdReady && mounted) {
-        _showLoadingDialog(context, "Loading...");
-      }
-
-      // Try to show ad (non-blocking)
-      final bool adShown = await _adManager.showInterstitial();
-
-      // Close loading dialog if it was shown
-      if (isAdReady && mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Preload next ad immediately
+      await _adManager.showInterstitial().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => false,
+      );
       _adManager.loadInterstitial();
-
     } catch (e) {
-      // Handle any errors gracefully
       debugPrint('Ad error: $e');
-      if (mounted) {
-        // Close loading dialog if open
-        try {
-          Navigator.of(context).pop();
-        } catch (_) {}
-      }
-    } finally {
-      setState(() => _isShowingAd = false);
-
-      // Navigate immediately after ad completes or fails
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CreateRoomScreen(),
-          ),
-        );
-      }
     }
-  }
 
-  /// Show ad and navigate to Game screen (for 4x4 grid)
-  Future<void> _handleStartGame(BuildContext context) async {
-    if (_isShowingAd) return; // Prevent multiple ad triggers
+    setState(() => _isShowingAd = false);
 
-    setState(() => _isShowingAd = true);
-
-    try {
-      // Check if ad is ready before showing loading
-      final bool isAdReady = _adManager.isInterstitialReady();
-
-      // Only show loading if ad is actually ready
-      if (isAdReady && mounted) {
-        _showLoadingDialog(context, "Loading game...");
-      }
-
-      // Try to show ad (non-blocking)
-      final bool adShown = await _adManager.showInterstitial();
-
-      // Close loading dialog if it was shown
-      if (isAdReady && mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Preload next ad immediately
-      _adManager.loadInterstitial();
-
-    } catch (e) {
-      // Handle any errors gracefully
-      debugPrint('Ad error: $e');
-      if (mounted) {
-        // Close loading dialog if open
-        try {
-          Navigator.of(context).pop();
-        } catch (_) {}
-      }
-    } finally {
-      setState(() => _isShowingAd = false);
-
-      // Navigate immediately after ad completes or fails
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const GameScreen(),
-          ),
-        );
-      }
-    }
-  }
-
-  /// Show a loading dialog
-  void _showLoadingDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false, // Prevent back button dismissal
-        child: Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(textPink),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    fontFamily: 'Digitalt',
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ],
-            ),
-          ),
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CreateRoomScreen(),
         ),
-      ),
-    );
+      );
+    }
   }
+
+  Future<void> _handleStartGame(BuildContext context) async {
+    if (_isShowingAd) return;
+
+    setState(() => _isShowingAd = true);
+
+    // 1. Show the ad and WAIT for it to finish or timeout
+    try {
+      await _adManager.showInterstitial().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          debugPrint("Ad timed out - moving to game");
+          return false;
+        },
+      );
+      // 2. Preload the next ad for later
+      _adManager.loadInterstitial();
+    } catch (e) {
+      debugPrint('Ad show error: $e');
+    }
+
+    setState(() => _isShowingAd = false);
+
+    // 3. Navigate only AFTER the ad attempt is finished
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const GameScreen(),
+        ),
+      );
+    }
+  }
+
 
   // ═══════════════════════════════════════════════════════════════
   // UI BUILDING METHODS
@@ -812,29 +715,6 @@ class _PlayScreenState extends State<PlayScreen> {
                 ],
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildJolLogo() {
-    const letters = ["J", "O", "L"];
-    const colors = [Color(0xFFf8bc64), textPink, Color(0xFFfc6839)];
-
-    return Row(
-      children: List.generate(
-        letters.length,
-            (index) => Text(
-          letters[index],
-          style: const TextStyle(
-            fontFamily: 'Digitalt',
-            fontWeight: FontWeight.w500,
-            fontSize: 35,
-            height: 0.82,
-          ).copyWith(
-            color: colors[index],
-            letterSpacing: 1.5,
           ),
         ),
       ),
