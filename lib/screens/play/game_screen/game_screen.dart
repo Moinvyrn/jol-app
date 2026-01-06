@@ -206,15 +206,7 @@ class _GameScreenState extends State<GameScreen> {
           if (controller.isGenerating) {
             return const Scaffold(
               body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(color: textPink),
-                    SizedBox(height: 20),
-                    Text("Building Puzzle...",
-                        style: TextStyle(fontFamily: "Rubik", fontWeight: FontWeight.bold)),
-                  ],
-                ),
+                child: CircularProgressIndicator(color: textPink),
               ),
             );
           }
