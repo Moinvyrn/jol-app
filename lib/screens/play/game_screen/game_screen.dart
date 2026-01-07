@@ -220,6 +220,7 @@ class _GameScreenState extends State<GameScreen> {
             onWillPop: () => _onWillPop(controller),
             child: Scaffold(
               body: Container(
+                height: double.infinity,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -269,6 +270,7 @@ class _GameScreenState extends State<GameScreen> {
                                     screenHeight: h,
                                     screenWidth: w,
                                   ),
+                                  SizedBox(height: h * 0.02),
                                 ],
                               ),
                             );

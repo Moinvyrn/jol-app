@@ -39,6 +39,13 @@ class GameController extends ChangeNotifier {
   GameMode get mode => _mode;
 
   GameController({this.gridSize = 4}) {
+    // Initialize all late fields immediately with default values
+    grid = List.generate(gridSize, (_) => List.filled(gridSize, null));
+    _solutionGrid = List.generate(gridSize, (_) => List.filled(gridSize, null));
+    isFixed = List.generate(gridSize, (_) => List.filled(gridSize, false));
+    isWrong = List.generate(gridSize, (_) => List.filled(gridSize, false));
+
+    // Then start the async initialization
     _initGrid();
   }
 
@@ -57,10 +64,16 @@ class GameController extends ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 50));
 
     final random = Random();
-    grid = List.generate(gridSize, (_) => List.filled(gridSize, null));
-    _solutionGrid = List.generate(gridSize, (_) => List.filled(gridSize, null));
-    isFixed = List.generate(gridSize, (_) => List.filled(gridSize, false));
-    isWrong = List.generate(gridSize, (_) => List.filled(gridSize, false));
+
+    // Reset the grids instead of creating new ones
+    for (int i = 0; i < gridSize; i++) {
+      for (int j = 0; j < gridSize; j++) {
+        grid[i][j] = null;
+        _solutionGrid[i][j] = null;
+        isFixed[i][j] = false;
+        isWrong[i][j] = false;
+      }
+    }
 
     grid[0][0] = -1;
     _solutionGrid[0][0] = -1;
@@ -404,8 +417,6 @@ class GameController extends ChangeNotifier {
   }
 
   // LOOPHOLE-FREE VALIDATION (Checks math logic, not just hardcoded values)
-  // Inside GameController class
-
   bool validateGrid() {
     int correctCount = 0;
     int totalPlayerCells = 0;
@@ -477,13 +488,10 @@ class GameController extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (timeLeft.inSeconds > 0 && isPlaying) {
         timeLeft -= const Duration(seconds: 1);
-        // REMOVED: validateGrid();
-        // We only notify listeners to update the clock UI
         notifyListeners();
       } else {
         stopTimer();
         isPlaying = false;
-        // Logic for when time runs out:
         validateGrid(); // Final validation when time is up
         notifyListeners();
       }
