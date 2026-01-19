@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../controller/game_controller.dart';
+//import '../../controller/game_controller.dart';
+import '../../controller/game_controller.dart'; // Updated import
 
 class GameGridWidget extends StatelessWidget {
   final GameController controller;
@@ -10,9 +11,11 @@ class GameGridWidget extends StatelessWidget {
   final Function(bool) onOperationToggle;
   final double screenHeight;
   final double screenWidth;
+  final Function(int, int)? onCellTap;
+  final Function(int, int)? onCellChanged;
 
   const GameGridWidget({
-    Key? key,
+    super.key,
     required this.controller,
     required this.inputControllers,
     required this.focusNodes,
@@ -21,9 +24,21 @@ class GameGridWidget extends StatelessWidget {
     required this.onOperationToggle,
     required this.screenHeight,
     required this.screenWidth,
-  }) : super(key: key);
+    this.onCellTap,
+    this.onCellChanged,
+  });
 
   String _getKey(int row, int col) => '$row-$col';
+
+  String _formatNumber(double? value) {
+    if (value == null) return "";
+    // If it's a whole number, show without decimal
+    if (value == value.toInt()) {
+      return value.toInt().toString();
+    }
+    // Otherwise show with decimal
+    return value.toStringAsFixed(1);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,14 +62,14 @@ class GameGridWidget extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, gridConstraints) {
             final availableSize =
-            gridConstraints.maxWidth < gridConstraints.maxHeight
-                ? gridConstraints.maxWidth
-                : gridConstraints.maxHeight;
+                gridConstraints.maxWidth < gridConstraints.maxHeight
+                    ? gridConstraints.maxWidth
+                    : gridConstraints.maxHeight;
 
             final spacing = availableSize * 0.02;
             final cellSize = (availableSize -
-                (spacing * (gridSize - 1)) -
-                (screenHeight * 0.03)) /
+                    (spacing * (gridSize - 1)) -
+                    (screenHeight * 0.03)) /
                 gridSize;
             final unifiedFontSize = cellSize * 0.35;
 
@@ -94,48 +109,60 @@ class GameGridWidget extends StatelessWidget {
                   child: Center(
                     child: (row == 0 && col == 0)
                         ? GestureDetector(
-                      onTap: isGameStarted
-                          ? null
-                          : () {
-                        onOperationToggle(!showMinus);
-                      },
-                      child: Text(
-                        showMinus ? "-" : "+",
-                        style: TextStyle(
-                          fontSize: unifiedFontSize * 1.3,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    )
+                            onTap: isGameStarted
+                                ? null
+                                : () {
+                                    onOperationToggle(!showMinus);
+                                  },
+                            child: Text(
+                              showMinus ? "-" : "+",
+                              style: TextStyle(
+                                fontSize: unifiedFontSize * 1.3,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          )
                         : isFixedCell
-                        ? Text(
-                      value?.toString() ?? "",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: unifiedFontSize,
-                        color: Colors.black,
-                      ),
-                    )
-                        : TextField(
-                      controller: inputControllers[_getKey(row, col)],
-                      focusNode: focusNodes[_getKey(row, col)],
-                      textAlign: TextAlign.center,
-                      readOnly: true,
-                      enabled: isGameStarted,
-                      showCursor: isGameStarted,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        hintText: "",
-                        counterText: "",
-                        isCollapsed: true,
-                      ),
-                      style: TextStyle(
-                        fontSize: unifiedFontSize,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
+                            ? Text(
+                                _formatNumber(value),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: unifiedFontSize,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : TextField(
+                                key: ValueKey('cell-$row-$col'),
+                                controller: inputControllers[_getKey(row, col)],
+                                focusNode: focusNodes[_getKey(row, col)],
+                                textAlign: TextAlign.center,
+                                enabled: isGameStarted,
+                                showCursor: isGameStarted,
+                                keyboardType: TextInputType.none,
+                                maxLength: 5,
+                                onTap: () {
+                                  debugPrint('cell tapped: $row-$col');
+                                  onCellTap?.call(row, col);
+                                  focusNodes[_getKey(row, col)]?.requestFocus();
+                                },
+                                onChanged: (value) {
+                                  // Use updateRawInput to handle partial decimals
+                                  controller.updateRawInput(row, col, value);
+                                  onCellChanged?.call(row, col);
+                                },
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: "",
+                                  counterText: "",
+                                  isCollapsed: true,
+                                ),
+                                style: TextStyle(
+                                  fontSize: unifiedFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
                   ),
                 );
               },

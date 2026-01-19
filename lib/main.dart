@@ -2,7 +2,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:jol_app/screens/dashboard/dashboard_screen.dart';
 import 'package:jol_app/screens/play/controller/game_controller.dart';
+import 'package:jol_app/screens/play/game_screen/game_screen.dart';
+import 'package:jol_app/screens/play/game_screen/game_screen_5x5.dart';
 import 'package:jol_app/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -26,8 +29,6 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-
-
   runApp(
     ChangeNotifierProvider(
       create: (_) => GameController(),
@@ -48,7 +49,11 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: SplashScreen(),
+      home:
+          // DashboardScreen(),
+          // GameScreen(),
+          // GameScreen5(),
+          SplashScreen(),
     );
   }
 }
