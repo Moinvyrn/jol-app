@@ -1,5 +1,6 @@
 // MultiplayerGameScreen.dart - UPDATED WITH SCROLLVIEW AND OVERFLOW FIXES
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:jol_app/screens/play/widgets/multiplayer_gamehelper.dart';
 import 'package:provider/provider.dart';
@@ -37,8 +38,12 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
 
   @override
   void dispose() {
-    _inputControllers.values.forEach((controller) => controller.dispose());
-    _focusNodes.values.forEach((node) => node.dispose());
+    for (var controller in _inputControllers.values) {
+      controller.dispose();
+    }
+    for (var node in _focusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -69,11 +74,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
   }
 
   Future<void> _saveGameToBackend(
-      BuildContext context,
-      MultiplayerGameController controller,
-      Room room,
-      String gameStatus,
-      ) async {
+    BuildContext context,
+    MultiplayerGameController controller,
+    Room room,
+    String gameStatus,
+  ) async {
     if (_isSaving || _hasAutoSaved) return;
     setState(() => _isSaving = true);
     showDialog(
@@ -129,15 +134,21 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
   }
 
   void _onKeyboardTap(String value, MultiplayerGameController controller) {
-    if (_selectedCell == null) return;
-    final parts = _selectedCell!.split('-');
+    final selected = _selectedCell;
+    if (selected == null) return;
+    final parts = selected.split('-');
     final row = int.parse(parts[0]);
     final col = int.parse(parts[1]);
+    // guard for fixed cells and controller presence
+    if (controller.room?.puzzle?.isFixed[row][col] == true) return;
+    final tc = _inputControllers[selected];
+    if (tc == null) return;
+    if (!(_focusNodes[selected]?.hasFocus ?? false)) return;
     if (value == 'clear') {
-      final currentText = _inputControllers[_selectedCell]?.text ?? '';
+      final currentText = tc.text;
       if (currentText.isNotEmpty) {
         final newText = currentText.substring(0, currentText.length - 1);
-        _inputControllers[_selectedCell]?.text = newText;
+        tc.text = newText;
         if (newText.isEmpty) {
           controller.updateCell(row, col, null);
         } else {
@@ -148,10 +159,10 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
         }
       }
     } else {
-      final currentText = _inputControllers[_selectedCell]?.text ?? '';
+      final currentText = tc.text;
       final newText = currentText + value;
       if (newText.length <= 3) {
-        _inputControllers[_selectedCell]?.text = newText;
+        tc.text = newText;
         final newVal = int.tryParse(newText);
         if (newVal != null && newVal >= 0) {
           controller.updateCell(row, col, newVal);
@@ -175,10 +186,13 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       child: Consumer<MultiplayerGameController>(
         builder: (context, controller, _) {
           // CRITICAL FIX 1: Navigate to results when game_screen ends + auto-save
-          if (controller.room?.gameState.status == 'ended' && !controller.isPlaying) {
+          if (controller.room?.gameState.status == 'ended' &&
+              !controller.isPlaying) {
             WidgetsBinding.instance.addPostFrameCallback((_) async {
               // Auto-save before navigating if player had submitted
-              if (!_hasAutoSaved && controller.isSubmitted && controller.room != null) {
+              if (!_hasAutoSaved &&
+                  controller.isSubmitted &&
+                  controller.room != null) {
                 // Determine status: completed if submitted, timed_out if time ran out
                 String status = 'completed';
                 if (controller.room!.settings.mode == 'timed' &&
@@ -221,12 +235,19 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
             for (int j = 0; j < gridSize; j++) {
               if ((i != 0 || j != 0) && !room.puzzle!.isFixed[i][j]) {
                 String key = _getKey(i, j);
-                _inputControllers.putIfAbsent(key, () => TextEditingController());
+                _inputControllers.putIfAbsent(
+                    key, () => TextEditingController());
                 _focusNodes.putIfAbsent(key, () {
                   final node = FocusNode();
                   node.addListener(() {
                     if (node.hasFocus) {
-                      setState(() => _selectedCell = key);
+                      SchedulerBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && _selectedCell != key)
+                          setState(() => _selectedCell = key);
+                      });
+                    } else {
+                      if (mounted && _selectedCell == key)
+                        setState(() => _selectedCell = null);
                     }
                   });
                   return node;
@@ -268,13 +289,15 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                               /// 1. Header Bar
                               Padding(
                                 padding: EdgeInsets.symmetric(
-                                  horizontal: MediaQuery.of(context).size.width * 0.03,
+                                  horizontal:
+                                      MediaQuery.of(context).size.width * 0.03,
                                   vertical: 8,
                                 ),
                                 child: Row(
                                   children: [
                                     InkWell(
-                                      onTap: () => _showLeaveConfirmation(controller),
+                                      onTap: () =>
+                                          _showLeaveConfirmation(controller),
                                       child: Container(
                                         width: 35,
                                         height: 35,
@@ -297,7 +320,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                                     ),
                                     const Spacer(),
                                     InkWell(
-                                      onTap: () => setState(() => _showLeaderboard = !_showLeaderboard),
+                                      onTap: () => setState(() =>
+                                          _showLeaderboard = !_showLeaderboard),
                                       child: Container(
                                         width: 35,
                                         height: 35,
@@ -316,7 +340,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
 
                               /// 2. Score & Timer
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
                                 child: Row(
                                   children: [
                                     Expanded(
@@ -327,28 +352,32 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: textPink,
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             isTimed
                                                 ? Text(
-                                              "Time: ${controller.timeLeft.inMinutes.toString().padLeft(2, '0')}:${(controller.timeLeft.inSeconds % 60).toString().padLeft(2, '0')}",
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 14,
-                                              ),
-                                            )
+                                                    "Time: ${controller.timeLeft.inMinutes.toString().padLeft(2, '0')}:${(controller.timeLeft.inSeconds % 60).toString().padLeft(2, '0')}",
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: 14,
+                                                    ),
+                                                  )
                                                 : const Text(
-                                              "Mode: Untimed",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 14,
-                                              ),
-                                            ),
+                                                    "Mode: Untimed",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
                                             Text(
                                               "Hints: ${controller.hintsRemaining}",
                                               style: const TextStyle(
@@ -368,36 +397,48 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
 
                               /// 3. Submit Game Button
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
                                 child: SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton(
-                                    onPressed: (controller.isPlaying && !controller.isSubmitted && _isGridFilled(controller, room))
+                                    onPressed: (controller.isPlaying &&
+                                            !controller.isSubmitted &&
+                                            _isGridFilled(controller, room))
                                         ? () async {
-                                      await controller.submitGame();
-                                      if (mounted && !_hasAutoSaved) {
-                                        await _saveGameToBackend(context, controller, room, 'completed');
-                                      }
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Game submitted and saved!'),
-                                            backgroundColor: textGreen,
-                                          ),
-                                        );
-                                      }
-                                    }
+                                            await controller.submitGame();
+                                            if (mounted && !_hasAutoSaved) {
+                                              await _saveGameToBackend(
+                                                  context,
+                                                  controller,
+                                                  room,
+                                                  'completed');
+                                            }
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                      'Game submitted and saved!'),
+                                                  backgroundColor: textGreen,
+                                                ),
+                                              );
+                                            }
+                                          }
                                         : null,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: textGreen,
                                       disabledBackgroundColor: Colors.grey,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                     ),
                                     child: Text(
-                                      controller.isSubmitted ? "Submitted ✓" : "Submit Game",
+                                      controller.isSubmitted
+                                          ? "Submitted ✓"
+                                          : "Submit Game",
                                       style: const TextStyle(
                                         fontFamily: "Rubik",
                                         fontSize: 16,
@@ -411,7 +452,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                               const SizedBox(height: 8),
 
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
                                 child: Text(
                                   "Double tap a cell to use a hint (if available)",
                                   style: TextStyle(
@@ -427,7 +469,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
 
                               /// 4. Grid - Fixed height to prevent overflow
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 40),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 40),
                                 child: Container(
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
@@ -445,77 +488,120 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                                     height: 280, // Fixed height for grid
                                     child: LayoutBuilder(
                                       builder: (context, gridConstraints) {
-                                        final gridWidth = gridConstraints.maxWidth;
+                                        final gridWidth =
+                                            gridConstraints.maxWidth;
                                         final spacing = 8;
-                                        final cellSize = (gridWidth - (spacing * (gridSize - 1))) / gridSize;
+                                        final cellSize = (gridWidth -
+                                                (spacing * (gridSize - 1))) /
+                                            gridSize;
                                         final unifiedFontSize = cellSize * 0.35;
                                         return GridView.builder(
-                                          physics: const NeverScrollableScrollPhysics(),
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
                                           itemCount: gridSize * gridSize,
-                                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                          gridDelegate:
+                                              SliverGridDelegateWithFixedCrossAxisCount(
                                             crossAxisCount: gridSize,
                                             mainAxisSpacing: spacing.toDouble(),
-                                            crossAxisSpacing: spacing.toDouble(),
+                                            crossAxisSpacing:
+                                                spacing.toDouble(),
                                             childAspectRatio: 1,
                                           ),
                                           itemBuilder: (context, index) {
                                             int row = index ~/ gridSize;
                                             int col = index % gridSize;
-                                            bool isFixedCell = room.puzzle!.isFixed[row][col];
-                                            final value = controller.grid[row][col];
+                                            bool isFixedCell =
+                                                room.puzzle!.isFixed[row][col];
+                                            final value =
+                                                controller.grid[row][col];
                                             Color cellColor = Colors.white;
                                             if (row == 0 && col == 0) {
-                                              cellColor = const Color(0xFFFFD54F);
+                                              cellColor =
+                                                  const Color(0xFFFFD54F);
                                             } else if (isFixedCell) {
-                                              cellColor = const Color(0xFFFFD54F);
+                                              cellColor =
+                                                  const Color(0xFFFFD54F);
                                             }
                                             return GestureDetector(
                                               onDoubleTap: () {
-                                                if (!isFixedCell && controller.hintsRemaining > 0) {
-                                                  _showHintDialog(controller, row, col);
+                                                if (!isFixedCell &&
+                                                    controller.hintsRemaining >
+                                                        0) {
+                                                  _showHintDialog(
+                                                      controller, row, col);
                                                 }
                                               },
                                               child: Container(
                                                 decoration: BoxDecoration(
                                                   color: cellColor,
-                                                  borderRadius: BorderRadius.circular(6),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
                                                 ),
                                                 child: Center(
                                                   child: (row == 0 && col == 0)
                                                       ? Text(
-                                                    room.settings.operation == 'addition' ? "+" : "-",
-                                                    style: TextStyle(
-                                                      fontSize: unifiedFontSize * 1.3,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Colors.black,
-                                                    ),
-                                                  )
+                                                          room.settings
+                                                                      .operation ==
+                                                                  'addition'
+                                                              ? "+"
+                                                              : "-",
+                                                          style: TextStyle(
+                                                            fontSize:
+                                                                unifiedFontSize *
+                                                                    1.3,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: Colors.black,
+                                                          ),
+                                                        )
                                                       : isFixedCell
-                                                      ? Text(
-                                                    value?.toString() ?? "",
-                                                    style: TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: unifiedFontSize,
-                                                      color: Colors.black,
-                                                    ),
-                                                  )
-                                                      : TextField(
-                                                    controller: _inputControllers[_getKey(row, col)],
-                                                    focusNode: _focusNodes[_getKey(row, col)],
-                                                    textAlign: TextAlign.center,
-                                                    readOnly: true,
-                                                    showCursor: true,
-                                                    decoration: const InputDecoration(
-                                                      border: InputBorder.none,
-                                                      hintText: "",
-                                                      counterText: "",
-                                                      isCollapsed: true,
-                                                    ),
-                                                    style: TextStyle(
-                                                      fontSize: unifiedFontSize,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
+                                                          ? Text(
+                                                              value?.toString() ??
+                                                                  "",
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontSize:
+                                                                    unifiedFontSize,
+                                                                color: Colors
+                                                                    .black,
+                                                              ),
+                                                            )
+                                                          : TextField(
+                                                              controller:
+                                                                  _inputControllers[
+                                                                      _getKey(
+                                                                          row,
+                                                                          col)],
+                                                              focusNode:
+                                                                  _focusNodes[
+                                                                      _getKey(
+                                                                          row,
+                                                                          col)],
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              readOnly: true,
+                                                              showCursor: true,
+                                                              decoration:
+                                                                  const InputDecoration(
+                                                                border:
+                                                                    InputBorder
+                                                                        .none,
+                                                                hintText: "",
+                                                                counterText: "",
+                                                                isCollapsed:
+                                                                    true,
+                                                              ),
+                                                              style: TextStyle(
+                                                                fontSize:
+                                                                    unifiedFontSize,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            ),
                                                 ),
                                               ),
                                             );
@@ -530,7 +616,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
 
                               /// 5. Keyboard - Fixed height
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 40),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 40),
                                 child: Container(
                                   height: 200, // Fixed height for keyboard
                                   padding: const EdgeInsets.all(16),
@@ -546,16 +633,20 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                                     ],
                                   ),
                                   child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
                                     children: [
                                       Expanded(
                                         child: Row(
                                           children: [
-                                            _buildKeyButton('1', controller, 16),
+                                            _buildKeyButton(
+                                                '1', controller, 16),
                                             const SizedBox(width: 8),
-                                            _buildKeyButton('2', controller, 16),
+                                            _buildKeyButton(
+                                                '2', controller, 16),
                                             const SizedBox(width: 8),
-                                            _buildKeyButton('3', controller, 16),
+                                            _buildKeyButton(
+                                                '3', controller, 16),
                                           ],
                                         ),
                                       ),
@@ -563,11 +654,14 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                                       Expanded(
                                         child: Row(
                                           children: [
-                                            _buildKeyButton('4', controller, 16),
+                                            _buildKeyButton(
+                                                '4', controller, 16),
                                             const SizedBox(width: 8),
-                                            _buildKeyButton('5', controller, 16),
+                                            _buildKeyButton(
+                                                '5', controller, 16),
                                             const SizedBox(width: 8),
-                                            _buildKeyButton('6', controller, 16),
+                                            _buildKeyButton(
+                                                '6', controller, 16),
                                           ],
                                         ),
                                       ),
@@ -575,11 +669,14 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                                       Expanded(
                                         child: Row(
                                           children: [
-                                            _buildKeyButton('7', controller, 16),
+                                            _buildKeyButton(
+                                                '7', controller, 16),
                                             const SizedBox(width: 8),
-                                            _buildKeyButton('8', controller, 16),
+                                            _buildKeyButton(
+                                                '8', controller, 16),
                                             const SizedBox(width: 8),
-                                            _buildKeyButton('9', controller, 16),
+                                            _buildKeyButton(
+                                                '9', controller, 16),
                                           ],
                                         ),
                                       ),
@@ -589,7 +686,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                                           children: [
                                             const Expanded(child: SizedBox()),
                                             const SizedBox(width: 8),
-                                            _buildKeyButton('0', controller, 16),
+                                            _buildKeyButton(
+                                                '0', controller, 16),
                                             const SizedBox(width: 8),
                                             _buildClearButton(controller),
                                           ],
@@ -608,8 +706,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                   ),
 
                   /// Leaderboard Overlay
-                  if (_showLeaderboard)
-                    _buildLeaderboardOverlay(controller),
+                  if (_showLeaderboard) _buildLeaderboardOverlay(controller),
                 ],
               ),
             ),
@@ -619,7 +716,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
     );
   }
 
-  Widget _buildKeyButton(String number, MultiplayerGameController controller, double fontSize) {
+  Widget _buildKeyButton(
+      String number, MultiplayerGameController controller, double fontSize) {
     return Expanded(
       child: Material(
         color: Colors.white,
@@ -702,7 +800,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: index == 0 ? Colors.amber.shade100 : Colors.grey.shade100,
+                      color: index == 0
+                          ? Colors.amber.shade100
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -713,7 +813,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                             fontFamily: "Rubik",
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
-                            color: index == 0 ? Colors.amber.shade900 : Colors.black87,
+                            color: index == 0
+                                ? Colors.amber.shade900
+                                : Colors.black87,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -739,7 +841,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                       ],
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),
@@ -753,7 +855,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Use Hint?'),
-        content: Text('Use a hint for this cell? (${controller.hintsRemaining} remaining)\n\nThis will deduct 5 points.'),
+        content: Text(
+            'Use a hint for this cell? (${controller.hintsRemaining} remaining)\n\nThis will deduct 5 points.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -836,7 +939,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                       onPressed: () => Navigator.pop(dialogContext),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        side: const BorderSide(color: Colors.black26, width: 1.5),
+                        side:
+                            const BorderSide(color: Colors.black26, width: 1.5),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -860,7 +964,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                         // Close dialog first
                         Navigator.pop(dialogContext);
                         // Save game with abandoned status
-                        if (controller.isPlaying && controller.room != null && !_hasAutoSaved) {
+                        if (controller.isPlaying &&
+                            controller.room != null &&
+                            !_hasAutoSaved) {
                           await _saveGameToBackend(
                             context,
                             controller,
