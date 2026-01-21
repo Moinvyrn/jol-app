@@ -643,7 +643,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         child: Column(
           children: [
-            _buildAppBar(context),
+           // _buildAppBar(context),
             Expanded(
               child: _error != null
                   ? Center(
